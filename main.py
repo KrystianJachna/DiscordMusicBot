@@ -1,11 +1,14 @@
+# main.py
+
 import asyncio
 import logging
+from sys import stderr
 
 import discord
 from discord.ext import commands
 
-from utils import load_token
 from music import Music
+from utils import load_token
 
 intents: discord.Intents = discord.Intents.default()
 intents.message_content = True
@@ -25,16 +28,36 @@ async def on_ready() -> None:
 
     :return: None
     """
-    message = "Logged in as {bot.user} (ID: {bot.user.id})"
+    message = f"Logged in as {bot.user} (ID: {bot.user.id})"
     print(message)
     print("-" * len(message))
 
 
+@bot.event
+async def on_command_error(ctx, error) -> None:
+    """
+    Send a message to the channel if a command is not found
+
+    :param ctx: Discord context
+    :param error: The error that occurred
+    :return:    None
+    """
+    if isinstance(error, commands.CommandNotFound):
+        await ctx.send("Command not found.")
+    else:
+        raise error
+
+
 async def main():
-    TOKEN = load_token()
-    async with bot:
-        await bot.add_cog(Music(bot))
-        await bot.start(TOKEN)
+    try:
+        TOKEN = load_token()
+        async with bot:
+            await bot.add_cog(Music(bot))
+            await bot.start(TOKEN)
+    except discord.LoginFailure:
+        print("Failed to login to discord, please check the token and try again.", file=stderr)
+    except Exception as e:
+        print(f"An error occurred: {e}", file=stderr)
 
 
 if __name__ == '__main__':
