@@ -1,30 +1,40 @@
-from discord.ext import commands
-from dotenv import load_dotenv
-from os import getenv
 import asyncio
+import logging
+
+import discord
+from discord.ext import commands
+
+from utils import load_token
+
+intents: discord.Intents = discord.Intents.default()
+intents.message_content = True
+
+bot: commands.Bot = commands.Bot(
+    command_prefix="!",
+    description="Relatively simple music bot with some extra features for gaming",
+    intents=intents,
+    log_level=logging.DEBUG  # TODO: change this to logging.INFO after testing
+)
 
 
-def load_token() -> str:
+@bot.event
+async def on_ready() -> None:
     """
-    Load the discord token from the .env file
+    Print a message to the console when the bot is ready
 
-    :raises Exception: If the .env file does not exist
-    :raises Exception: If the token is not specified in the .env file
-    :return: The discord token
+    :return: None
     """
-    if not load_dotenv():
-        raise Exception(
-            "Failed to load .env file, please ensure it exists in the root directory of the project."
-        )
-    token = getenv("DISCORD_TOKEN")
-    if not token:
-        raise Exception(
-            "Failed to load token from .env file, please specify the token in the .env file. as DISCORD_TOKEN"
-        )
-    return token
+    message = "Logged in as {bot.user} (ID: {bot.user.id})"
+    print(message)
+    print("-" * len(message))
 
 
 async def main():
     TOKEN = load_token()
+    async with bot:
+        ...
+        await bot.start(TOKEN)
 
-# asyncio.run(main())
+
+if __name__ == '__main__':
+    asyncio.run(main())
