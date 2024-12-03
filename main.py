@@ -10,7 +10,7 @@ from discord.ext import commands
 from music import Music
 from utils import load_token
 
-intents: discord.Intents = discord.Intents.default()
+intents = discord.Intents.default()
 intents.message_content = True
 
 bot: commands.Bot = commands.Bot(
