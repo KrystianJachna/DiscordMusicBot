@@ -41,6 +41,10 @@ class Music(commands.Cog):
     async def queue(self, ctx: commands.Context):
         ...
 
+    @commands.command()
+    async def clear(self, ctx: commands.Context):
+        ...
+
     @tasks.loop()
     async def check_listeners(self):
         ...
