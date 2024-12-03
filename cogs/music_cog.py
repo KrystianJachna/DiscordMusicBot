@@ -2,11 +2,13 @@
 import asyncio
 import random
 from random import random
+from typing import Optional
 
 from discord.ext import commands, tasks
+from discord import VoiceChannel, VoiceClient
 
 from cogs.music.music_downlaoder import MusicDownloader
-from cogs.music.music_queue import MusicQueue
+from cogs.music.music_service import MusicQueue, MusicPlayer
 
 
 class MusicCog(commands.Cog):
@@ -18,15 +20,14 @@ class MusicCog(commands.Cog):
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
-        # self.q = []
-        # self.currently_downloading = False
-        # self.music_queue = []
-        # self.mdow = MusicDownloader()
-        self.music_queue = MusicQueue(bot)
+        self.music_queue = MusicQueue()
+        self.music_player: Optional[MusicPlayer] = None
 
     @commands.command()
     async def play(self, ctx: commands.Context, *, arg: str):
         await self.music_queue.add(arg, ctx)
+        if not self.music_player.is_running():
+            self.music_player.start_loop(ctx)
 
 
     @commands.command()
@@ -71,7 +72,8 @@ class MusicCog(commands.Cog):
     async def ensure_voice(self, ctx):
         if ctx.voice_client is None:
             if ctx.author.voice:
-                await ctx.author.voice.channel.connect()
+                voice_client = await ctx.author.voice.channel.connect()
+                self.music_player = MusicPlayer(self.music_queue, voice_client)
             else:
                 await ctx.send("You are not connected to a voice channel.")
                 raise commands.CommandError("Author not connected to a voice channel.")
