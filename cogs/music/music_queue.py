@@ -1,10 +1,56 @@
+from abc import ABC, abstractmethod
+import asyncio
+
 from discord.ext import commands
+from discord import VoiceProtocol
 
 from cogs.music.music_downlaoder import MusicDownloader
 from cogs.music.song import Song
 
 
-class MusicQueue:
+class MusicManager(ABC):
+
+    class EndOfPlaylist(Exception):
+        ...
+
+    @abstractmethod
+    async def next(self) -> Song:
+        pass
+
+
+class MusicPlayer:
+
+    def __init__(self, music_manager: MusicManager):
+        self._is_playing = False
+        self._loop: None | asyncio.Task = None
+        self.music_manager = music_manager
+
+    async def play_loop(self, ctx: commands.Context):
+        self._is_playing = True
+        while True:
+            try:
+                song = await self.music_manager.next()
+            except MusicManager.EndOfPlaylist:
+                break
+            voice_cli = ctx.voice_client
+            assert isinstance(voice_cli, VoiceProtocol)
+            await asyncio.to_thread(voice_cli.play, song.source)
+        self._is_playing = False
+
+    def is_running(self) -> bool:
+        return self._is_playing
+
+    def start_loop(self, ctx: commands.Context):
+        if self._is_playing:
+            raise RuntimeError("The player is already running.")
+        self._loop = asyncio.create_task(self.play_loop(ctx), name=f'{self.__class__.__name__}::f{id(self)}')
+
+    def stop_loop(self):
+        if self._loop:
+            self._loop.cancel()
+
+
+class MusicQueue(MusicManager):
     """
     TODO: add docstring
     """
@@ -21,6 +67,9 @@ class MusicQueue:
         self.downloading_queue.append(query)
         if not self.currently_downloading:
             await self._process_queue(ctx)
+
+    async def next(self) -> Song:
+        ...
 
     async def _process_queue(self, ctx: commands.Context) -> None:
         while self.downloading_queue:
