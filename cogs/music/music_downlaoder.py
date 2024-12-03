@@ -1,11 +1,12 @@
+import asyncio
 import os
 from pathlib import Path
 from typing import Optional
-from cogs.music.song import Song
 from uuid import uuid4
-import asyncio
 
 import yt_dlp
+
+from cogs.music.song import Song
 
 
 class MusicDownloader:
@@ -14,7 +15,7 @@ class MusicDownloader:
         os.makedirs(self.DOWNLOAD_FOLDER, exist_ok=True)
         self.ydl_opts = {
             'format': 'bestaudio/best',
-            'outtmpl': f'{self.DOWNLOAD_FOLDER}/{uuid4()}.%(ext)s',
+            'outtmpl': f'{self.DOWNLOAD_FOLDER}/%(id)s.%(ext)s',
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
@@ -26,13 +27,18 @@ class MusicDownloader:
 
     async def download(self, url: str) -> Song:
         """
-        Download a song from a youtube url
+        Download a song from a youtube url, rename the file to a random name
 
         :param url: The youtube url
         :return:   The song object
         """
         info = await asyncio.to_thread(self._extract_info, url)
-        return Song(title=info['title'], file=Path(self.DOWNLOAD_FOLDER) / f"{info['id']}.mp3")
+        original_file = f"{info['id']}.mp3"
+        original_file_path = self.DOWNLOAD_FOLDER / original_file
+        random_file = f"{uuid4()}.mp3"
+        random_file_path = self.DOWNLOAD_FOLDER / random_file
+        os.rename(original_file_path, random_file_path)
+        return Song(title=info['title'], file=random_file_path)
 
     def _extract_info(self, url: str) -> dict:
         """
@@ -42,4 +48,4 @@ class MusicDownloader:
         :return:   The information
         """
         with yt_dlp.YoutubeDL(self.ydl_opts) as ydl:
-            return ydl.extract_info(url, download=False)
+            return ydl.extract_info(url, download=True)
