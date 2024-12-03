@@ -7,7 +7,7 @@ from sys import stderr
 import discord
 from discord.ext import commands
 
-from music import Music
+from cogs.music_cog import MusicCog
 from utils import load_token, setup_logging
 
 intents = discord.Intents.default()
@@ -52,7 +52,7 @@ async def main():
         TOKEN = load_token()
         setup_logging(logging.DEBUG)  # TODO: Change to logging.INFO for production
         async with bot:
-            await bot.add_cog(Music(bot))
+            await bot.add_cog(MusicCog(bot))
             await bot.start(TOKEN)
     except discord.LoginFailure:
         print("Failed to login to discord, please check the token and try again.", file=stderr)
