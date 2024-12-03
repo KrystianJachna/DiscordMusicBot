@@ -10,6 +10,11 @@ from cogs.music.song import Song
 
 
 class MusicDownloader:
+    """
+    Class to download music from youtube
+
+    :param download_folder: The folder to download the music to
+    """
     def __init__(self, download_folder: Optional[Path] = Path('downloads')) -> None:
         self.DOWNLOAD_FOLDER = download_folder
         os.makedirs(self.DOWNLOAD_FOLDER, exist_ok=True)
