@@ -8,7 +8,7 @@ import discord
 from discord.ext import commands
 
 from music import Music
-from utils import load_token
+from utils import load_token, setup_logging
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -16,8 +16,7 @@ intents.message_content = True
 bot: commands.Bot = commands.Bot(
     command_prefix="!",
     description="Relatively simple music bot with some extra features for gaming",
-    intents=intents,
-    log_level=logging.DEBUG  # TODO: change this to logging.INFO after testing
+    intents=intents
 )
 
 
@@ -51,6 +50,7 @@ async def on_command_error(ctx, error) -> None:
 async def main():
     try:
         TOKEN = load_token()
+        setup_logging(logging.DEBUG)  # TODO: Change to logging.INFO for production
         async with bot:
             await bot.add_cog(Music(bot))
             await bot.start(TOKEN)

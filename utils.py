@@ -1,6 +1,8 @@
 # utils.py
 
+import logging
 from os import getenv
+from sys import stderr
 
 from dotenv import load_dotenv
 
@@ -23,3 +25,17 @@ def load_token() -> str:
             "Failed to load token from .env file, please specify the token in the .env file. as DISCORD_TOKEN"
         )
     return token
+
+
+def setup_logging(level: int = logging.INFO) -> None:
+    """
+    Setup logging for the bot
+
+    :param level: The logging level to use
+    :return: None
+    """
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        stream=stderr
+    )
