@@ -32,14 +32,13 @@ class MusicQueue:
         self.currently_downloading = False
 
     def _play(self, ctx: commands.Context) -> None:
-        try:
-            song = self.music_queue.pop(0)
-        except IndexError:
-            self.playing = False
-            return
+        song = self.music_queue.pop(0)
+        print(f"Playing: {song.title}")
         self.playing = True
         ctx.voice_client.play(song.source,
-                              after=lambda e: self._play_next(ctx) if not e else print(f"Player error: {e}"))
+                              after=lambda e: self._play_next(ctx) if not e else print(f"Player error: {e}")
+                              )
+        print(f'end of _play')
 
     def _play_next(self, ctx: commands.Context) -> None:
         if not self.music_queue:
