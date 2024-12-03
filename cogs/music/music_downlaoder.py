@@ -1,6 +1,7 @@
 import asyncio
 import os
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 from uuid import uuid4
@@ -8,7 +9,12 @@ from uuid import uuid4
 import yt_dlp
 from discord import FFmpegPCMAudio
 
-from cogs.music.song import Song
+
+@dataclass
+class Song:
+    title: str
+    url: str
+    source: FFmpegPCMAudio
 
 
 class MusicDownloader:
@@ -50,8 +56,7 @@ class MusicDownloader:
         random_file = f"{uuid4()}.mp3"
         random_file_path = self.DOWNLOAD_FOLDER / random_file
         os.rename(original_file_path, random_file_path)
-        return Song(title=info['title'], file=random_file_path, url=info['webpage_url'],
-                    source=FFmpegPCMAudio(str(random_file_path)))
+        return Song(info['title'], info['webpage_url'], FFmpegPCMAudio(str(random_file_path)))
 
     def _extract_info(self, url: str) -> dict:
         """
