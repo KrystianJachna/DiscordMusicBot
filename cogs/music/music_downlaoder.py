@@ -12,6 +12,13 @@ from discord import FFmpegPCMAudio
 
 @dataclass
 class Song:
+    """
+    Dataclass to store song information
+
+    :param title:  The title of the song
+    :param url:    The url of the song
+    :param source: FFmpegPCMAudio source of the song
+    """
     title: str
     url: str
     source: FFmpegPCMAudio
