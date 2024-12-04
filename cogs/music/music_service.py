@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from abc import ABC, abstractmethod
 
 from discord import VoiceClient
@@ -21,9 +22,10 @@ class MusicPlayer:
 
     def __init__(self, music_manager: MusicManager, voice_client: VoiceClient):
         self._is_playing = False
-        self._loop: None | asyncio.Task = None
         self.music_manager = music_manager
         self.voice_client = voice_client
+        self.singing: asyncio.Condition = asyncio.Condition()
+        self.event_loop = asyncio.get_event_loop()
 
     async def play_loop(self):
         self._is_playing = True
@@ -32,20 +34,23 @@ class MusicPlayer:
                 song = await self.music_manager.next()
             except MusicManager.EndOfPlaylistException:
                 break
-            await asyncio.to_thread(self.voice_client.play, song.source)
+            async with self.singing:
+                self.voice_client.play(
+                    song.source,
+                    after=lambda _: asyncio.run_coroutine_threadsafe(
+                        self._notify_singing(), self.event_loop
+                    )
+                )
+                await self.singing.wait()
         self._is_playing = False
 
-    def is_running(self) -> bool:
+    async def _notify_singing(self):
+        async with self.singing:
+            self.singing.notify_all()
+
+    @property
+    def is_playing(self) -> bool:
         return self._is_playing
-
-    def start_loop(self, ctx: commands.Context):
-        if self._is_playing:
-            raise RuntimeError("The player is already running.")
-        self._loop = asyncio.create_task(self.play_loop(), name=f'{self.__class__.__name__}::f{id(self)}')
-
-    def stop_loop(self):
-        if self._loop:
-            self._loop.cancel()
 
 
 class MusicQueue(MusicManager):
@@ -64,8 +69,15 @@ class MusicQueue(MusicManager):
         while self.downloading_queue:
             self.currently_downloading = True
             query = self.downloading_queue.pop(0)
-            song = await self.music_downloader.download(query)
+            try:
+                song = await self.music_downloader.download(query)
+            except Exception as e:
+                await ctx.send(f"An error occurred while downloading the song: {query}")
+                logging.error(e)
+                continue
             await self.music_queue.put(song)
+            await ctx.send(f"Added `{song.title}` to the queue.")
+            await ctx.send(f"{song.url}")
         self.currently_downloading = False
 
     async def next(self) -> Song:

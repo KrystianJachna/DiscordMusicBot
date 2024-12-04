@@ -36,6 +36,6 @@ def setup_logging(level: int = logging.INFO) -> None:
     """
     logging.basicConfig(
         level=level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        format="%(asctime)-15s - %(name)-15s - %(levelname)-5s - %(message)s",
         stream=stderr
     )

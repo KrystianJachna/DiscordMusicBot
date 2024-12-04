@@ -28,8 +28,8 @@ async def on_ready() -> None:
     :return: None
     """
     message = f"Logged in as {bot.user} (ID: {bot.user.id})"
-    print(message)
-    print("-" * len(message))
+    logging.info(message)
+    logging.info("-" * len(message))
 
 
 @bot.event
@@ -44,7 +44,7 @@ async def on_command_error(ctx, error) -> None:
     if isinstance(error, commands.CommandNotFound):
         await ctx.send("Command not found.")
     else:
-        raise error
+        logging.error(error)
 
 
 async def main():

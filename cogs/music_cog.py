@@ -26,8 +26,8 @@ class MusicCog(commands.Cog):
     @commands.command()
     async def play(self, ctx: commands.Context, *, arg: str):
         await self.music_queue.add(arg, ctx)
-        if not self.music_player.is_running():
-            self.music_player.start_loop(ctx)
+        if not self.music_player.is_playing:
+            await self.music_player.play_loop()
 
 
     @commands.command()
@@ -36,9 +36,7 @@ class MusicCog(commands.Cog):
 
     @commands.command()
     async def stop(self, ctx: commands.Context):
-        # await ctx.send(f"queue now has {self.q.qsize()} items")
-        await ctx.send(f"Queue items: {self.music_queue}")
-        #
+        ...
 
     @commands.command()
     async def pause(self, ctx: commands.Context):
