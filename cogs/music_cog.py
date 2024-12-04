@@ -24,42 +24,49 @@ class MusicCog(commands.Cog):
         self.music_player: Optional[MusicPlayer] = None
 
     @commands.command()
-    async def play(self, ctx: commands.Context, *, arg: str):
+    async def play(self, ctx: commands.Context, *, arg: str) -> None:
+        """
+        Play a song in the voice channel
+
+        :param ctx: The discord context
+        :param arg: The song to play passed as a url or search query by the user
+        :return:
+        """
         await self.music_queue.add(arg, ctx)
         if not self.music_player.is_playing:
             await self.music_player.play_loop()
 
 
     @commands.command()
-    async def skip(self, ctx: commands.Context):
+    async def skip(self, ctx: commands.Context) -> None:
         ...
 
     @commands.command()
-    async def stop(self, ctx: commands.Context):
+    async def stop(self, ctx: commands.Context) -> None:
         ...
 
     @commands.command()
-    async def pause(self, ctx: commands.Context):
+    async def pause(self, ctx: commands.Context) -> None:
         ...
 
     @commands.command()
-    async def resume(self, ctx: commands.Context):
+    async def resume(self, ctx: commands.Context) -> None:
         ...
 
     @commands.command()
-    async def loop(self, ctx: commands.Context):
+    async def loop(self, ctx: commands.Context) -> None:
         ...
 
     @commands.command()
-    async def join(self, ctx: commands.Context):
+    async def join(self, ctx: commands.Context) -> None:
         ...
 
     @commands.command()
-    async def queue(self, ctx: commands.Context):
+    async def queue(self, ctx: commands.Context) -> None:
         ...
 
     @commands.command()
-    async def clear(self, ctx: commands.Context):
+    async def clear(self, ctx: commands.Context) -> None:
         ...
 
     @tasks.loop()
