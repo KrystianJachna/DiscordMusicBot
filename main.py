@@ -47,7 +47,12 @@ async def on_command_error(ctx, error) -> None:
         logging.error(error)
 
 
-async def main():
+async def main() -> None:
+    """
+    Main function to start the bot
+
+    :return: None
+    """
     try:
         TOKEN = load_token()
         setup_logging(logging.DEBUG)  # TODO: Change to logging.INFO for production

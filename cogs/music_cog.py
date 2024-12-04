@@ -7,8 +7,7 @@ from typing import Optional
 from discord.ext import commands, tasks
 from discord import VoiceChannel, VoiceClient
 
-from cogs.music.music_downlaoder import MusicDownloader
-from cogs.music.music_service import MusicQueue, MusicPlayer
+from .music.music_service import MusicQueue, MusicPlayer
 
 
 class MusicCog(commands.Cog):
