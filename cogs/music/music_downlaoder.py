@@ -21,6 +21,7 @@ class Song:
     """
     title: str
     url: str
+    duration: int
     source: FFmpegPCMAudio
 
 
@@ -63,7 +64,7 @@ class MusicDownloader:
         random_file = f"{uuid4()}.mp3"
         random_file_path = self.DOWNLOAD_FOLDER / random_file
         os.rename(original_file_path, random_file_path)
-        return Song(info['title'], info['webpage_url'], FFmpegPCMAudio(str(random_file_path)))
+        return Song(info['title'], info['webpage_url'], info['duration'], FFmpegPCMAudio(str(random_file_path)))
 
     def _extract_info(self, url: str) -> dict:
         """

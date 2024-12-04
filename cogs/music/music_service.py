@@ -6,6 +6,15 @@ from discord import VoiceClient
 from discord.ext import commands
 
 from .music_downlaoder import MusicDownloader, Song
+import asyncio
+import logging
+from abc import ABC, abstractmethod
+
+from discord import VoiceClient, Embed
+from discord.ext import commands
+
+from .music_downlaoder import MusicDownloader, Song
+from .messages import *
 
 
 class MusicManager(ABC):
@@ -32,6 +41,14 @@ class MusicPlayer:
         self.voice_client = voice_client
         self._singing: asyncio.Condition = asyncio.Condition()
         self.event_loop = asyncio.get_event_loop()
+
+    async def skip(self) -> None:
+        """
+        Skip the current song
+
+        :return: None
+        """
+        self.voice_client.stop()
 
     async def play_loop(self) -> None:
         """
@@ -119,12 +136,11 @@ class MusicQueue(MusicManager):
             try:
                 song = await self.music_downloader.download(query)
             except Exception as e:
-                await ctx.send(f"An error occurred while downloading the song: {query}")
+                await ctx.send(embed=download_error(query))
                 logging.error(e)
                 continue
             await self.music_queue.put(song)
-            await ctx.send(f"Added `{song.title}` to the queue.")
-            await ctx.send(f"{song.url}")
+            await ctx.send(embed=added_to_queue(song, self.queue_length))
         self.currently_downloading = False
 
     async def next(self) -> Song:
@@ -136,3 +152,12 @@ class MusicQueue(MusicManager):
         if self.music_queue.empty() and not self.currently_downloading:
             raise MusicManager.EndOfPlaylistException
         return await self.music_queue.get()
+
+    @property
+    def queue_length(self) -> int:
+        """
+        Get the length of the queue
+
+        :return: The length of the queue
+        """
+        return self.music_queue.qsize()

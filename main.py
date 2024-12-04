@@ -9,6 +9,7 @@ from discord.ext import commands
 
 from cogs.music_cog import MusicCog
 from utils import load_token, setup_logging
+from messages import *
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -42,7 +43,7 @@ async def on_command_error(ctx, error) -> None:
     :return:    None
     """
     if isinstance(error, commands.CommandNotFound):
-        await ctx.send("Command not found.")
+        await ctx.send(embed=command_not_found())
     else:
         logging.error(error)
 

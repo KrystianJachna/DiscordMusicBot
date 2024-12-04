@@ -6,6 +6,7 @@ from typing import Optional
 
 from discord.ext import commands, tasks
 from discord import VoiceChannel, VoiceClient
+from .music.messages import *
 
 from .music.music_service import MusicQueue, MusicPlayer
 
@@ -22,7 +23,7 @@ class MusicCog(commands.Cog):
         self.music_queue = MusicQueue()
         self.music_player: Optional[MusicPlayer] = None
 
-    @commands.command()
+    @commands.command(description="Play a song in the voice channel")
     async def play(self, ctx: commands.Context, *, arg: str) -> None:
         """
         Play a song in the voice channel
@@ -38,11 +39,21 @@ class MusicCog(commands.Cog):
 
     @commands.command()
     async def skip(self, ctx: commands.Context) -> None:
-        ...
+        """
+        Skip the current song
+
+        :param ctx: The discord context
+        :return: None
+        """
+        if not self.music_player.is_playing:
+            await ctx.send(embed=skip_error())
+            return
+        await self.music_player.skip()
+        await ctx.send(embed=skipped(self.music_queue.queue_length))
 
     @commands.command()
     async def stop(self, ctx: commands.Context) -> None:
-        ...
+        pass
 
     @commands.command()
     async def pause(self, ctx: commands.Context) -> None:
@@ -50,7 +61,7 @@ class MusicCog(commands.Cog):
 
     @commands.command()
     async def resume(self, ctx: commands.Context) -> None:
-        ...
+        await self.music_player.resume()
 
     @commands.command()
     async def loop(self, ctx: commands.Context) -> None:
