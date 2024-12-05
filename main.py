@@ -34,7 +34,7 @@ async def on_ready() -> None:
 
 
 @bot.event
-async def on_command_error(ctx, error) -> None:
+async def on_command_error(ctx: commands.Context, error: Exception) -> None:
     """
     Send a message to the channel if a command is not found
 

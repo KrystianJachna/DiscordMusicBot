@@ -29,3 +29,8 @@ def skipped(queue_length: int) -> Embed:
                     description=f"**Queue Length:** {queue_length}",
                     color=0x00FF00)
     return message
+
+def not_in_voice_channel() -> Embed:
+    return Embed(title="Not in Voice Channel",
+                 description="You need to be in a voice channel to use this command",
+                 color=0xFF0000)
