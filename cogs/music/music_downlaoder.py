@@ -57,7 +57,7 @@ class MusicDownloader:
         :param url: The youtube url or search query
         :return:   The song object
         """
-        url = await self._get_url(arg)
+        url = await asyncio.to_thread(self._get_url, arg)
         info = await asyncio.to_thread(self._extract_info, url)
         original_file = f"{info['id']}.mp3"
         original_file_path = self.DOWNLOAD_FOLDER / original_file
@@ -76,14 +76,14 @@ class MusicDownloader:
         with yt_dlp.YoutubeDL(self.ydl_opts) as ydl:
             return ydl.extract_info(url, download=True)
 
-    async def _get_url(self, arg: str) -> str:
+    def _get_url(self, arg: str) -> str:
         """
         Get the url from a command argument
 
         :param arg: The command argument
         :return:    The url
         """
-        return arg if re.match(self.youtube_regex, arg) else await asyncio.to_thread(self._extract_url, arg)
+        return arg if re.match(self.youtube_regex, arg) else self._extract_url(arg)
 
     @staticmethod
     def _extract_url(query: str) -> str:
