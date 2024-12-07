@@ -54,15 +54,26 @@ class MusicCog(commands.Cog):
 
     @commands.command()
     async def create_playlist(self, ctx: commands.Context) -> None:
-        ...
+        pass
 
     @commands.command()
     async def stop(self, ctx: commands.Context) -> None:
-        ...
+        if not self.music_player:
+            await ctx.send(embed=not_connected())
+            return
+        await self.music_player.stop()
+        self.music_player = None
+        await ctx.send(embed=stopped())
 
 
     @commands.command(help="Pause the current song")
     async def pause(self, ctx: commands.Context) -> None:
+        """
+        Pause the current song
+
+        :param ctx: The discord context
+        :return: None
+        """
         try:
             await self.music_player.pause()
         except MusicPlayer.NotPlayingException:
@@ -83,22 +94,28 @@ class MusicCog(commands.Cog):
 
     @commands.command()
     async def loop(self, ctx: commands.Context) -> None:
-        ...
+        pass
 
     @commands.command()
     async def queue(self, ctx: commands.Context) -> None:
-        ...
+        pass
 
     @commands.command()
     async def clear(self, ctx: commands.Context) -> None:
-        ...
+        pass
 
     @tasks.loop()
     async def check_listeners(self):
-        ...
+        pass
 
     @play.before_invoke
     async def ensure_voice(self, ctx):
+        """
+        Ensure the bot is in a voice channel before playing a song
+
+        :param ctx: The discord context
+        :return: None
+        """
         if ctx.voice_client is None:
             if ctx.author.voice:
                 voice_client = await ctx.author.voice.channel.connect()

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from abc import ABC, abstractmethod
+from typing import Optional
 
 from discord import VoiceClient
 from discord.ext import commands
@@ -26,6 +27,10 @@ class MusicManager(ABC):
     async def next(self) -> Song:
         pass
 
+    @abstractmethod
+    async def clear_queue(self) -> None:
+        pass
+
 
 class MusicPlayer:
     """
@@ -45,6 +50,7 @@ class MusicPlayer:
         self.voice_client = voice_client
         self._singing: asyncio.Condition = asyncio.Condition()
         self.event_loop = asyncio.get_event_loop()
+        self.keep_playing = True
 
     async def pause(self) -> None:
         """
@@ -82,7 +88,7 @@ class MusicPlayer:
         :return: None
         """
         self._is_playing = True
-        while True:
+        while self.keep_playing:
             try:
                 song = await self.music_manager.next()
             except MusicManager.EndOfPlaylistException:
@@ -105,6 +111,18 @@ class MusicPlayer:
         """
         async with self._singing:
             self._singing.notify_all()
+
+    async def stop(self) -> None:
+        """
+        Stop the player
+
+        :return: None
+        """
+        self.keep_playing = False
+        self.voice_client.stop()
+        await self.music_manager.clear_queue()
+        await self.voice_client.disconnect()
+
 
     @property
     def is_playing(self) -> bool:
@@ -185,3 +203,16 @@ class MusicQueue(MusicManager):
         :return: The length of the queue
         """
         return self.music_queue.qsize()
+
+    async def clear_queue(self) -> None:
+        """
+        Clear the queue
+
+        :return: None
+        """
+        self.music_queue = asyncio.Queue()
+        self.downloading_queue.clear()
+
+        if self.currently_downloading:
+            await self.music_queue.get()
+            self.currently_downloading = False

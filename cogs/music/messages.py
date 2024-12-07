@@ -39,3 +39,13 @@ def not_playing() -> Embed:
     return Embed(title="Not Playing",
                  description="There is no song currently playing",
                  color=0xFF6900)
+
+def not_connected() -> Embed:
+    return Embed(title="Not Connected",
+                 description="I am not connected to a voice channel",
+                 color=0xFF0000)
+
+def stopped() -> Embed:
+    return Embed(title="Stopped",
+                 description="The music player has been stopped",
+                 color=0x00FF00)
