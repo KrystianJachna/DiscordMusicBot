@@ -166,4 +166,5 @@ cython_debug/
 out.*
 
 # ignore downloaded songs
-downloads/*.mp3
+!gitkeep
+downloads/*
