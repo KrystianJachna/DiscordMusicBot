@@ -5,9 +5,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 from uuid import uuid4
+import logging
 
 import yt_dlp
 from discord import FFmpegPCMAudio
+
 
 
 @dataclass
@@ -31,6 +33,10 @@ class MusicDownloader:
 
     :param download_folder: The folder to download the music to
     """
+
+    class NoResultsFound(Exception):
+        def __init__(self, query: str) -> None:
+            super().__init__(f"No results found for: {query}\nPlease try a different search query")
 
     def __init__(self, download_folder: Optional[Path] = Path('downloads')) -> None:
         self.DOWNLOAD_FOLDER = download_folder
@@ -90,9 +96,12 @@ class MusicDownloader:
         """
         Extract the url from a search query
 
+        :raise ValueError: If the search query does not return any results
         :param query: The search query
         :return:      The url
         """
         with yt_dlp.YoutubeDL() as ydl:
             search = ydl.extract_info(f"ytsearch:{query}", download=False)
-            return search['entries'][0]['webpage_url']
+        if not search['entries']:
+            raise MusicDownloader.NoResultsFound(query)
+        return search['entries'][0]['webpage_url']
