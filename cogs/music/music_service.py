@@ -6,16 +6,8 @@ from typing import Optional, Tuple
 from discord import VoiceClient
 from discord.ext import commands
 
-from .music_downlaoder import MusicDownloader, Song
-import asyncio
-import logging
-from abc import ABC, abstractmethod
-
-from discord import VoiceClient, Embed
-from discord.ext import commands
-
-from .music_downlaoder import MusicDownloader, Song
 from .messages import *
+from .music_downlaoder import MusicDownloader
 
 
 class MusicManager(ABC):
@@ -24,6 +16,7 @@ class MusicManager(ABC):
 
     :param EndOfPlaylistException: Exception to raise when the end of the playlist is reached
     """
+
     class EndOfPlaylistException(Exception):
         def __init__(self):
             super().__init__("End of playlist reached.")
@@ -148,7 +141,6 @@ class MusicPlayer:
         await self.music_manager.clear_queue()
         await self.voice_client.disconnect()
 
-
     @property
     def is_playing(self) -> bool:
         """
@@ -157,7 +149,6 @@ class MusicPlayer:
         :return: True if the player is playing a song, False otherwise
         """
         return self._is_playing
-
 
 
 class MusicQueue(MusicManager):
@@ -205,7 +196,8 @@ class MusicQueue(MusicManager):
             self.currently_downloading = True
             self.song_currently_downloading = self.downloading_queue.pop(0)
             try:
-                self.download_task = asyncio.create_task(self.music_downloader.download(self.song_currently_downloading))
+                self.download_task = asyncio.create_task(
+                    self.music_downloader.download(self.song_currently_downloading))
                 song = await self.download_task
             except asyncio.CancelledError:
                 logging.info("Download task cancelled")
@@ -258,7 +250,6 @@ class MusicQueue(MusicManager):
         self.music_queue = asyncio.Queue()
         self.downloaded_songs.clear()
 
-
     def get_queue_info(self) -> Tuple[str, str, str]:
         """
         Show the songs in the queue
@@ -272,6 +263,3 @@ class MusicQueue(MusicManager):
         to_download = "-" + "\n-".join(self.downloading_queue) if self.downloading_queue else "-"
 
         return downloaded, now_downloading, to_download
-
-
-
