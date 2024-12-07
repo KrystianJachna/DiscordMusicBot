@@ -19,16 +19,32 @@ from .messages import *
 
 
 class MusicManager(ABC):
+    """
+    Abstract class to manage the music queue
+
+    :param EndOfPlaylistException: Exception to raise when the end of the playlist is reached
+    """
     class EndOfPlaylistException(Exception):
         def __init__(self):
             super().__init__("End of playlist reached.")
 
     @abstractmethod
     async def next(self) -> Song:
+        """
+        Get the next song from the queue
+
+        :return: The next song
+        """
         pass
 
     @abstractmethod
     async def clear_queue(self) -> None:
+        """
+        Clear the queue
+
+        :return: None
+        :return:
+        """
         pass
 
 
@@ -149,6 +165,7 @@ class MusicQueue(MusicManager):
         self.currently_downloading = False
         self.music_queue: asyncio.Queue[Song] = asyncio.Queue()
         self.music_downloader = MusicDownloader()
+        self.download_task: Optional[asyncio.Task] = None
 
     async def add(self, query: str, ctx: commands.Context) -> None:
         """
@@ -176,7 +193,12 @@ class MusicQueue(MusicManager):
             self.currently_downloading = True
             query = self.downloading_queue.pop(0)
             try:
-                song = await self.music_downloader.download(query)
+                # song = await self.music_downloader.download(query)
+                self.download_task = asyncio.create_task(self.music_downloader.download(query))
+                song = await self.download_task
+            except asyncio.CancelledError:
+                logging.info("Download task cancelled")
+                continue
             except Exception as e:
                 await ctx.send(embed=download_error(query))
                 logging.error(e)
@@ -210,9 +232,9 @@ class MusicQueue(MusicManager):
 
         :return: None
         """
-        self.music_queue = asyncio.Queue()
         self.downloading_queue.clear()
 
         if self.currently_downloading:
-            await self.music_queue.get()
-            self.currently_downloading = False
+            self.download_task.cancel()
+
+        self.music_queue = asyncio.Queue()

@@ -56,7 +56,7 @@ class MusicCog(commands.Cog):
     async def create_playlist(self, ctx: commands.Context) -> None:
         pass
 
-    @commands.command()
+    @commands.command(description="Stop the music player")
     async def stop(self, ctx: commands.Context) -> None:
         if not self.music_player:
             await ctx.send(embed=not_connected())
@@ -66,7 +66,7 @@ class MusicCog(commands.Cog):
         await ctx.send(embed=stopped())
 
 
-    @commands.command(help="Pause the current song")
+    @commands.command(description="Pause the current song")
     async def pause(self, ctx: commands.Context) -> None:
         """
         Pause the current song
@@ -79,7 +79,7 @@ class MusicCog(commands.Cog):
         except MusicPlayer.NotPlayingException:
             await ctx.send(embed=not_playing())
 
-    @commands.command(help="Resume the current song")
+    @commands.command(description="Resume the current song")
     async def resume(self, ctx: commands.Context) -> None:
         """
         Resume the current song
