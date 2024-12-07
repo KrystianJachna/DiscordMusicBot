@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Tuple
 
 from discord import VoiceClient
 from discord.ext import commands
@@ -67,6 +67,7 @@ class MusicPlayer:
         self._singing: asyncio.Condition = asyncio.Condition()
         self.event_loop = asyncio.get_event_loop()
         self.keep_playing = True
+        self._now_playing: Optional[Song] = None
 
     async def pause(self) -> None:
         """
@@ -106,18 +107,26 @@ class MusicPlayer:
         self._is_playing = True
         while self.keep_playing:
             try:
-                song = await self.music_manager.next()
+                self._now_playing = await self.music_manager.next()
             except MusicManager.EndOfPlaylistException:
                 break
             async with self._singing:
                 self.voice_client.play(
-                    song.source,
+                    self._now_playing.source,
                     after=lambda _: asyncio.run_coroutine_threadsafe(
                         self._notify_singing(), self.event_loop
                     )
                 )
                 await self._singing.wait()
         self._is_playing = False
+
+    def get_now_playing(self) -> Optional[str]:
+        """
+        Get the song name that is currently playing
+
+        :return: The song name that is currently playing or an empty string if no song is playing
+        """
+        return self._now_playing.title if self._now_playing else "-"
 
     async def _notify_singing(self) -> None:
         """
@@ -150,6 +159,7 @@ class MusicPlayer:
         return self._is_playing
 
 
+
 class MusicQueue(MusicManager):
     """
     Class to manage the music queue, and download the songs
@@ -164,8 +174,10 @@ class MusicQueue(MusicManager):
         self.downloading_queue: list[str] = []
         self.currently_downloading = False
         self.music_queue: asyncio.Queue[Song] = asyncio.Queue()
+        self.downloaded_songs: list[str] = []
         self.music_downloader = MusicDownloader()
         self.download_task: Optional[asyncio.Task] = None
+        self.song_currently_downloading: Optional[str] = None
 
     async def add(self, query: str, ctx: commands.Context) -> None:
         """
@@ -191,19 +203,23 @@ class MusicQueue(MusicManager):
         """
         while self.downloading_queue:
             self.currently_downloading = True
-            query = self.downloading_queue.pop(0)
+            self.song_currently_downloading = self.downloading_queue.pop(0)
             try:
-                # song = await self.music_downloader.download(query)
-                self.download_task = asyncio.create_task(self.music_downloader.download(query))
+                self.download_task = asyncio.create_task(self.music_downloader.download(self.song_currently_downloading))
                 song = await self.download_task
             except asyncio.CancelledError:
                 logging.info("Download task cancelled")
                 continue
+            except MusicDownloader.NoResultsFound as e:
+                await ctx.send(embed=no_results(self.song_currently_downloading))
+                logging.error(e)
+                continue
             except Exception as e:
-                await ctx.send(embed=download_error(query))
+                await ctx.send(embed=download_error(self.song_currently_downloading))
                 logging.error(e)
                 continue
             await self.music_queue.put(song)
+            self.downloaded_songs.append(song.title)
             await ctx.send(embed=added_to_queue(song, self.queue_length))
         self.currently_downloading = False
 
@@ -215,7 +231,9 @@ class MusicQueue(MusicManager):
         """
         if self.music_queue.empty() and not self.currently_downloading:
             raise MusicManager.EndOfPlaylistException
-        return await self.music_queue.get()
+        song = await self.music_queue.get()
+        self.downloaded_songs.remove(song.title)
+        return song
 
     @property
     def queue_length(self) -> int:
@@ -238,3 +256,22 @@ class MusicQueue(MusicManager):
             self.download_task.cancel()
 
         self.music_queue = asyncio.Queue()
+        self.downloaded_songs.clear()
+
+
+    def get_queue_info(self) -> Tuple[str, str, str]:
+        """
+        Show the songs in the queue
+
+        Each song is separated by a new line and a dash
+
+        :return: A tuple containing the downloaded songs, the song currently downloading, and the songs to download
+        """
+        downloaded = "-" + "\n-".join(self.downloaded_songs) if self.downloaded_songs else "-"
+        now_downloading = "-" + self.song_currently_downloading if self.currently_downloading else "-"
+        to_download = "-" + "\n-".join(self.downloading_queue) if self.downloading_queue else "-"
+
+        return downloaded, now_downloading, to_download
+
+
+

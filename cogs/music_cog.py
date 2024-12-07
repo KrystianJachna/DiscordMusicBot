@@ -1,16 +1,10 @@
 # music.py
-import asyncio
-import random
-from random import random
 from typing import Optional
 
-import discord
 from discord.ext import commands, tasks
-from discord import VoiceChannel, VoiceClient
-from .music.messages import *
 
+from .music.messages import *
 from .music.music_service import MusicQueue, MusicPlayer
-import random
 
 
 class MusicCog(commands.Cog):
@@ -58,13 +52,18 @@ class MusicCog(commands.Cog):
 
     @commands.command(description="Stop the music player")
     async def stop(self, ctx: commands.Context) -> None:
+        """
+        Stop the music player
+
+        :param ctx: The discord context
+        :return: None
+        """
         if not self.music_player:
             await ctx.send(embed=not_connected())
             return
         await self.music_player.stop()
         self.music_player = None
         await ctx.send(embed=stopped())
-
 
     @commands.command(description="Pause the current song")
     async def pause(self, ctx: commands.Context) -> None:
@@ -96,13 +95,28 @@ class MusicCog(commands.Cog):
     async def loop(self, ctx: commands.Context) -> None:
         pass
 
-    @commands.command()
+    @commands.command(description="Get information about the music queue")
     async def queue(self, ctx: commands.Context) -> None:
-        pass
+        """
+        Get information about the music queue
 
-    @commands.command()
+        :param ctx: The discord context
+        :return: None
+        """
+        downloaded, now_downloading, to_download = self.music_queue.get_queue_info()
+        now_playing = self.music_player.get_now_playing() if self.music_player else "-"
+        await ctx.send(embed=queue(downloaded, now_downloading, to_download, now_playing))
+
+    @commands.command(description="Clear the music queue")
     async def clear(self, ctx: commands.Context) -> None:
-        pass
+        """
+        Clear the music queue
+
+        :param ctx: The discord context
+        :return: None
+        """
+        await self.music_queue.clear_queue()
+        await ctx.send(embed=clear())
 
     @tasks.loop()
     async def check_listeners(self):
