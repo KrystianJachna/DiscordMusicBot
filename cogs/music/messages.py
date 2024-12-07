@@ -34,3 +34,8 @@ def not_in_voice_channel() -> Embed:
     return Embed(title="Not in Voice Channel",
                  description="You need to be in a voice channel to use this command",
                  color=0xFF0000)
+
+def not_playing() -> Embed:
+    return Embed(title="Not Playing",
+                 description="There is no song currently playing",
+                 color=0xFF6900)

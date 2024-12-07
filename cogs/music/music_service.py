@@ -35,12 +35,36 @@ class MusicPlayer:
     :param voice_client: The voice client (think of it as the voice channel)
     """
 
+    class NotPlayingException(Exception):
+        def __init__(self):
+            super().__init__("Player is not playing")
+
     def __init__(self, music_manager: MusicManager, voice_client: VoiceClient):
         self._is_playing = False
         self.music_manager = music_manager
         self.voice_client = voice_client
         self._singing: asyncio.Condition = asyncio.Condition()
         self.event_loop = asyncio.get_event_loop()
+
+    async def pause(self) -> None:
+        """
+        Pause the current song
+
+        :return: None
+        """
+        if not self._is_playing:
+            raise MusicPlayer.NotPlayingException
+        self.voice_client.pause()
+
+    async def resume(self):
+        """"
+        Resume the current song
+
+        :return: None
+        """
+        if not self._is_playing:
+            raise MusicPlayer.NotPlayingException
+        self.voice_client.resume()
 
     async def skip(self) -> None:
         """

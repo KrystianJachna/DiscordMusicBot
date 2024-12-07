@@ -61,13 +61,25 @@ class MusicCog(commands.Cog):
         ...
 
 
-    @commands.command()
+    @commands.command(help="Pause the current song")
     async def pause(self, ctx: commands.Context) -> None:
-        ...
+        try:
+            await self.music_player.pause()
+        except MusicPlayer.NotPlayingException:
+            await ctx.send(embed=not_playing())
 
-    @commands.command()
+    @commands.command(help="Resume the current song")
     async def resume(self, ctx: commands.Context) -> None:
-        ...
+        """
+        Resume the current song
+
+        :param ctx: The discord context
+        :return: None
+        """
+        try:
+            await self.music_player.resume()
+        except MusicPlayer.NotPlayingException:
+            await ctx.send(embed=not_playing())
 
     @commands.command()
     async def loop(self, ctx: commands.Context) -> None:
