@@ -6,6 +6,7 @@ from discord.ext import commands, tasks
 
 from .music.messages import *
 from .music.music_service import MusicQueue, MusicPlayer
+import logging
 
 
 class MusicCog(commands.Cog):
@@ -30,6 +31,10 @@ class MusicCog(commands.Cog):
         :return:
         """
         await self.music_queue.add(arg, ctx)
+        try:
+            self.check_listeners.start()
+        except RuntimeError:
+            pass
         if not self.music_player.is_playing:
             await self.music_player.play_loop()
 
@@ -65,6 +70,10 @@ class MusicCog(commands.Cog):
         await self.music_player.stop()
         self.music_player = None
         await ctx.send(embed=stopped())
+        try:
+            self.check_listeners.stop()
+        except RuntimeError:
+            pass
 
     @commands.command(description="Pause the currently playing song")
     async def pause(self, ctx: commands.Context) -> None:
@@ -119,9 +128,19 @@ class MusicCog(commands.Cog):
         await self.music_queue.clear_queue()
         await ctx.send(embed=clear())
 
-    @tasks.loop()
-    async def check_listeners(self):
-        pass
+    @tasks.loop(minutes=5)
+    async def check_listeners(self) -> None:
+        """
+        Check if the bot is connected to a voice channel and if there are any listeners
+
+        If the bot is not connected to a voice channel and there are no listeners, the bot will disconnect
+        """
+        if self.music_player:
+            members = list(filter(lambda x: not x.bot, self.music_player.voice_client.channel.members))
+            if not members:
+                await self.music_player.stop()
+                self.music_player = None
+                self.check_listeners.stop()
 
     @play.before_invoke
     async def ensure_voice(self, ctx):

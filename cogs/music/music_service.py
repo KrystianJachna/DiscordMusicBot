@@ -56,7 +56,7 @@ class MusicPlayer:
     def __init__(self, music_manager: MusicManager, voice_client: VoiceClient):
         self._is_playing = False
         self.music_manager = music_manager
-        self.voice_client = voice_client
+        self._voice_client = voice_client
         self._singing: asyncio.Condition = asyncio.Condition()
         self.event_loop = asyncio.get_event_loop()
         self.keep_playing = True
@@ -149,6 +149,15 @@ class MusicPlayer:
         :return: True if the player is playing a song, False otherwise
         """
         return self._is_playing
+
+    @property
+    def voice_client(self) -> VoiceClient:
+        """
+        Get the voice client
+
+        :return: The voice client
+        """
+        return self._voice_client
 
 
 class MusicQueue(MusicManager):
