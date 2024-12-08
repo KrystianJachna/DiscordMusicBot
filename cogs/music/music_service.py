@@ -119,7 +119,7 @@ class MusicPlayer:
 
         :return: The song name that is currently playing or an empty string if no song is playing
         """
-        return self._now_playing.title if self._now_playing else "-"
+        return f"[{self._now_playing.title}]({self._now_playing.url})" if self._now_playing else ""
 
     async def _notify_singing(self) -> None:
         """
@@ -258,8 +258,9 @@ class MusicQueue(MusicManager):
 
         :return: A tuple containing the downloaded songs, the song currently downloading, and the songs to download
         """
-        downloaded = "-" + "\n-".join(self.downloaded_songs) if self.downloaded_songs else "-"
-        now_downloading = "-" + self.song_currently_downloading if self.currently_downloading else "-"
-        to_download = "-" + "\n-".join(self.downloading_queue) if self.downloading_queue else "-"
+        downloaded = "- " + "\n- ".join('`' + i + '`' for i in self.downloaded_songs) if self.downloaded_songs else ""
+        now_downloading = "- `" + self.song_currently_downloading + '`' if self.currently_downloading else ""
+        to_download = "- " + "\n- ".join(
+            '`' + i + '`' for i in self.downloading_queue) if self.downloading_queue else ""
 
         return downloaded, now_downloading, to_download

@@ -64,13 +64,17 @@ def stopped() -> Embed:
 
 
 def queue(downloaded: str, now_downloading: str, to_download: str, now_playing: str) -> Embed:
-    message = Embed(title="Music Queue",
-                    description="**Now Playing:** " + now_playing,
-                    color=0x00FF00)
-    message.add_field(name="Downloaded", value=downloaded)
-    message.add_field(name="Now Downloading", value=now_downloading)
-    message.add_field(name="To Download", value=to_download)
-
+    if any([downloaded, now_downloading, to_download, now_playing]):
+        message = Embed(title="Music Queue",
+                        description="**Now Playing:** " + now_playing,
+                        color=0x00FF00)
+        message.add_field(name="Downloaded", value=downloaded)
+        message.add_field(name="Now Downloading", value=now_downloading)
+        message.add_field(name="To Download", value=to_download)
+    else:
+        message = Embed(title="Music Queue",
+                        description="The music queue is empty",
+                        color=0xFF0000)
     return message
 
 def clear() -> Embed:
