@@ -5,12 +5,14 @@ from discord import Embed
 from .music_downlaoder import Song
 
 
-def added_to_queue(song: Song, queue_elements: int) -> Embed:
+def added_to_queue(song: Song, queue_elements: int, loop_enabled: bool) -> Embed:
     message = Embed(title="Song Added to Queue 🎶",
                     description=f"[{song.title}]({song.url})\n",
                     color=0x00FF00)
     message.add_field(name="Duration", value=str(timedelta(seconds=song.duration)))
     message.add_field(name="Queue Length", value=queue_elements)
+    if loop_enabled:
+        message.set_footer(text="Looping is enabled")
     return message
 
 
@@ -63,7 +65,7 @@ def stopped() -> Embed:
                  color=0x00FF00)
 
 
-def queue(downloaded: str, now_downloading: str, to_download: str, now_playing: str) -> Embed:
+def queue(downloaded: str, now_downloading: str, to_download: str, now_playing: str, looping_enabled: bool) -> Embed:
     if any([downloaded, now_downloading, to_download, now_playing]):
         message = Embed(title="Music Queue",
                         description="**Now Playing:** " + now_playing,
@@ -75,9 +77,15 @@ def queue(downloaded: str, now_downloading: str, to_download: str, now_playing: 
         message = Embed(title="Music Queue",
                         description="The music queue is empty",
                         color=0xFF0000)
+    if looping_enabled:
+        message.set_footer(text="Looping is enabled")
     return message
 
 def clear() -> Embed:
     return Embed(title="Queue Cleared",
                  description="The music queue has been cleared",
+                 color=0x00FF00)
+
+def looping(loop: bool) -> Embed:
+    return Embed(title=f"Looping is now {'enabled' if loop else 'disabled'}",
                  color=0x00FF00)

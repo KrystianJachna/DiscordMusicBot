@@ -178,6 +178,15 @@ class MusicQueue(MusicManager):
         self.music_downloader = MusicDownloader()
         self.download_task: Optional[asyncio.Task] = None
         self.song_currently_downloading: Optional[str] = None
+        self._loop_music = False
+
+    @property
+    def loop_music(self) -> bool:
+        return self._loop_music
+
+    @loop_music.setter
+    def loop_music(self, value: bool) -> None:
+        self._loop_music = value
 
     async def add(self, query: str, ctx: commands.Context) -> None:
         """
@@ -221,7 +230,7 @@ class MusicQueue(MusicManager):
                 continue
             await self.music_queue.put(song)
             self.downloaded_songs.append(song.title)
-            await ctx.send(embed=added_to_queue(song, self.queue_length))
+            await ctx.send(embed=added_to_queue(song, self.queue_length, self.loop_music))
         self.currently_downloading = False
 
     async def next(self) -> Song:
@@ -233,7 +242,12 @@ class MusicQueue(MusicManager):
         if self.music_queue.empty() and not self.currently_downloading:
             raise MusicManager.EndOfPlaylistException
         song = await self.music_queue.get()
-        self.downloaded_songs.remove(song.title)
+        logging.info(f"Playing song: {song.title}")
+        if self.loop_music:
+            await self.music_queue.put(song)
+            logging.info(f"Looping song: {song.title}")
+        else:
+            self.downloaded_songs.remove(song.title)
         return song
 
     @property
