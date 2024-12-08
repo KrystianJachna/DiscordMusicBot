@@ -285,9 +285,9 @@ class MusicQueue(MusicManager):
 
         :return: A tuple containing the downloaded songs, the song currently downloading, and the songs to download
         """
-        downloaded = "- " + "\n- ".join('`' + i + '`' for i in self.downloaded_songs) if self.downloaded_songs else ""
+        downloaded = "- " + "\n- ".join('`' + title + '`' for title in self.downloaded_songs) if self.downloaded_songs else ""
         now_downloading = "- `" + self.song_currently_downloading + '`' if self.currently_downloading else ""
         to_download = "- " + "\n- ".join(
-            '`' + i + '`' for i in self.downloading_queue) if self.downloading_queue else ""
+            '`' + query + '`' for query, _ in self.downloading_queue) if self.downloading_queue else ""
 
         return downloaded, now_downloading, to_download
