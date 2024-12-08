@@ -48,7 +48,7 @@ class MusicDownloader:
         def __init__(self, query: str) -> None:
             super().__init__(f"No results found for: {query}\nPlease try a different search query")
 
-    def __init__(self, download_folder: Optional[Path] = Path('downloads'), *, quiet: bool = True) -> None:
+    def __init__(self, download_folder: Optional[Path] = Path('downloads'), *, quiet: bool = False) -> None:
         self.DOWNLOAD_FOLDER = download_folder
         os.makedirs(self.DOWNLOAD_FOLDER, exist_ok=True)
         self.youtube_regex = re.compile(

@@ -175,7 +175,7 @@ class MusicQueue(MusicManager):
         self.currently_downloading = False
         self.music_queue: asyncio.Queue[Song] = asyncio.Queue()
         self.downloaded_songs: list[str] = []
-        self.music_downloader = MusicDownloader()
+        self.music_downloader = MusicDownloader(quiet=False) # TODO: Change to True for production
         self.download_task: Optional[asyncio.Task] = None
         self.song_currently_downloading: Optional[str] = None
         self._loop_music = False
