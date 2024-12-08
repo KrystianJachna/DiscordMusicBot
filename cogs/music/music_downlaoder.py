@@ -9,6 +9,7 @@ import logging
 
 import yt_dlp
 from discord import FFmpegPCMAudio
+import time
 
 
 @dataclass
@@ -47,7 +48,7 @@ class MusicDownloader:
         def __init__(self, query: str) -> None:
             super().__init__(f"No results found for: {query}\nPlease try a different search query")
 
-    def __init__(self, download_folder: Optional[Path] = Path('downloads')) -> None:
+    def __init__(self, download_folder: Optional[Path] = Path('downloads'), *, quiet: bool = True) -> None:
         self.DOWNLOAD_FOLDER = download_folder
         os.makedirs(self.DOWNLOAD_FOLDER, exist_ok=True)
         self.youtube_regex = re.compile(
@@ -62,7 +63,13 @@ class MusicDownloader:
                 'preferredquality': '192',
             }],
             'no_playlist': True,
+            'quiet': quiet,
             'match_filter': yt_dlp.utils.match_filter_func("!is_live"),
+        }
+        self.extract_url_opts = {
+            'quiet': quiet,
+            'extract_flat': True,
+            'force_generic_extractor': True,
         }
         self._downloaded_songs: dict[str, Song] = {}
 
@@ -106,8 +113,7 @@ class MusicDownloader:
         """
         return arg if self.youtube_regex.match(arg) else self._extract_url(arg)
 
-    @staticmethod
-    def _extract_url(query: str) -> str:
+    def _extract_url(self, query: str) -> str:
         """
         Extract the url from a search query
 
@@ -115,8 +121,8 @@ class MusicDownloader:
         :param query: The search query
         :return:      The url
         """
-        with yt_dlp.YoutubeDL() as ydl:
+        with yt_dlp.YoutubeDL(self.extract_url_opts) as ydl:
             search = ydl.extract_info(f"ytsearch:{query}", download=False)
         if not search['entries']:
             raise MusicDownloader.NoResultsFound(query)
-        return search['entries'][0]['webpage_url']
+        return search['entries'][0]['url']
