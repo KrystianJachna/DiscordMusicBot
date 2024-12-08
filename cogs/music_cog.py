@@ -1,4 +1,3 @@
-# music.py
 from typing import Optional
 
 import discord
@@ -101,10 +100,10 @@ class MusicCog(commands.Cog):
         except MusicPlayer.NotPlayingException:
             await ctx.send(embed=not_playing())
 
-    @commands.command(description="Toggle looping for the current song")
+    @commands.command(description="Toggle looping for the current playlist")
     async def loop(self, ctx: commands.Context) -> None:
         """
-        Toggle looping for the current song
+        Toggle looping for the current playlist
 
         :param ctx: The discord context
         :return: None
