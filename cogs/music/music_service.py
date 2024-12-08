@@ -171,7 +171,7 @@ class MusicQueue(MusicManager):
     """
 
     def __init__(self) -> None:
-        self.downloading_queue: list[str] = []
+        self.downloading_queue: list[Tuple[str, bool]] = [] # list of tuples containing the url/silent flag
         self.currently_downloading = False
         self.music_queue: asyncio.Queue[Song] = asyncio.Queue()
         self.downloaded_songs: list[str] = []
@@ -188,7 +188,7 @@ class MusicQueue(MusicManager):
     def loop_music(self, value: bool) -> None:
         self._loop_music = value
 
-    async def add(self, query: str, ctx: commands.Context) -> None:
+    async def add(self, query: str, ctx: Optional[commands.Context], *, silent: bool = False) -> None:
         """
         Add a song to the queue, and start downloading it if there are no songs currently downloading
 
@@ -196,11 +196,11 @@ class MusicQueue(MusicManager):
         :param ctx: The discord context
         :return: None
         """
-        self.downloading_queue.append(query)
+        self.downloading_queue.append((query, silent))
         if not self.currently_downloading:
             await self._download(ctx)
 
-    async def _download(self, ctx: commands.Context) -> None:
+    async def _download(self, ctx: Optional[commands.Context]) -> None:
         """
         Process the downloading queue
 
@@ -211,26 +211,30 @@ class MusicQueue(MusicManager):
         :return: None
         """
         while self.downloading_queue:
+            message: Optional[Embed] = None
             self.currently_downloading = True
-            self.song_currently_downloading = self.downloading_queue.pop(0)
+            self.song_currently_downloading, silent = self.downloading_queue.pop(0)
             try:
                 self.download_task = asyncio.create_task(
                     self.music_downloader.download(self.song_currently_downloading))
                 song = await self.download_task
             except asyncio.CancelledError:
-                logging.info("Download task cancelled")
                 continue
             except MusicDownloader.NoResultsFound as e:
-                await ctx.send(embed=no_results(self.song_currently_downloading))
-                logging.error(e)
+                message = no_results(self.song_currently_downloading)
                 continue
             except Exception as e:
-                await ctx.send(embed=download_error(self.song_currently_downloading))
+                message = download_error(self.song_currently_downloading)
                 logging.error(e)
                 continue
+            finally:
+                if ctx and message and not silent:
+                    await ctx.send(embed=message)
             await self.music_queue.put(song)
             self.downloaded_songs.append(song.title)
-            await ctx.send(embed=added_to_queue(song, self.queue_length, self.loop_music))
+            message = added_to_queue(song, self.queue_length, self.loop_music)
+            if ctx and not silent and message:
+                await ctx.send(embed=message)
         self.currently_downloading = False
 
     async def next(self) -> Song:
@@ -244,7 +248,7 @@ class MusicQueue(MusicManager):
         song = await self.music_queue.get()
         logging.info(f"Playing song: {song.title}")
         if self.loop_music:
-            await self.music_queue.put(song)
+            await self.add(song.url, None, silent=True)
             logging.info(f"Looping song: {song.title}")
         else:
             self.downloaded_songs.remove(song.title)
