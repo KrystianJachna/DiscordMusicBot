@@ -70,9 +70,9 @@ def queue(downloaded: str, now_downloading: str, to_download: str, now_playing: 
         message = Embed(title="Music Queue",
                         description="**Now Playing:** " + now_playing,
                         color=0x00FF00)
-        message.add_field(name="Downloaded", value=downloaded)
-        message.add_field(name="Now Downloading", value=now_downloading)
-        message.add_field(name="To Download", value=to_download)
+        message.add_field(name="Downloaded:", value=downloaded)
+        message.add_field(name="Now Downloading:", value=now_downloading)
+        message.add_field(name="To Download:", value=to_download)
     else:
         message = Embed(title="Music Queue",
                         description="The music queue is empty",
