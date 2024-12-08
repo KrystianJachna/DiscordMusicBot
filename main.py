@@ -17,7 +17,8 @@ intents.message_content = True
 bot: commands.Bot = commands.Bot(
     command_prefix="!",
     description="Relatively simple music bot with some extra features for gaming",
-    intents=intents
+    intents=intents,
+    help_command=HelpMessage()
 )
 
 

@@ -1,6 +1,7 @@
 # music.py
 from typing import Optional
 
+import discord
 from discord.ext import commands, tasks
 
 from .music.messages import *
@@ -19,7 +20,7 @@ class MusicCog(commands.Cog):
         self.music_queue = MusicQueue()
         self.music_player: Optional[MusicPlayer] = None
 
-    @commands.command(description="Play a song in the voice channel")
+    @commands.command(description="Play a song or add it to the queue, use !play <url or search query>")
     async def play(self, ctx: commands.Context, *, arg) -> None:
         """
         Play a song in the voice channel
@@ -32,7 +33,7 @@ class MusicCog(commands.Cog):
         if not self.music_player.is_playing:
             await self.music_player.play_loop()
 
-    @commands.command()
+    @commands.command(description="Skip the currently playing song")
     async def skip(self, ctx: commands.Context) -> None:
         """
         Skip the current song
@@ -50,7 +51,7 @@ class MusicCog(commands.Cog):
     async def create_playlist(self, ctx: commands.Context) -> None:
         pass
 
-    @commands.command(description="Stop the music player")
+    @commands.command(description="Stop playback and clear the music player")
     async def stop(self, ctx: commands.Context) -> None:
         """
         Stop the music player
@@ -65,7 +66,7 @@ class MusicCog(commands.Cog):
         self.music_player = None
         await ctx.send(embed=stopped())
 
-    @commands.command(description="Pause the current song")
+    @commands.command(description="Pause the currently playing song")
     async def pause(self, ctx: commands.Context) -> None:
         """
         Pause the current song
@@ -78,7 +79,7 @@ class MusicCog(commands.Cog):
         except MusicPlayer.NotPlayingException:
             await ctx.send(embed=not_playing())
 
-    @commands.command(description="Resume the current song")
+    @commands.command(description="Resume playback of the paused song")
     async def resume(self, ctx: commands.Context) -> None:
         """
         Resume the current song
@@ -91,11 +92,11 @@ class MusicCog(commands.Cog):
         except MusicPlayer.NotPlayingException:
             await ctx.send(embed=not_playing())
 
-    @commands.command()
+    @commands.command(description="Toggle looping for the current song")
     async def loop(self, ctx: commands.Context) -> None:
-        pass
+        ...
 
-    @commands.command(description="Get information about the music queue")
+    @commands.command(description="View the current music queue")
     async def queue(self, ctx: commands.Context) -> None:
         """
         Get information about the music queue
@@ -107,7 +108,7 @@ class MusicCog(commands.Cog):
         now_playing = self.music_player.get_now_playing() if self.music_player else "-"
         await ctx.send(embed=queue(downloaded, now_downloading, to_download, now_playing))
 
-    @commands.command(description="Clear the music queue")
+    @commands.command(description="Clear all songs from the queue")
     async def clear(self, ctx: commands.Context) -> None:
         """
         Clear the music queue
