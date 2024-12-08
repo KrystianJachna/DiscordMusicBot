@@ -26,8 +26,8 @@ class HelpMessage(commands.HelpCommand):
         This bot is a relatively simple music bot with some extra features for gaming.
         
         To get started, use the `!help` command to see the list of available commands.
-        You can also use `!help <command>` to get more information about a specific command.
-        In order to get more information about a specific Cog, use `!help <cog>`.
+        You can also use `!help <command>` to get more information about a specific command. E.g. `!help play`
+        In order to get more information about a specific Cog, use `!help <cog>`. E.g. `!help MusicCog`
         
         The available commands are:
         """
@@ -48,7 +48,7 @@ class HelpMessage(commands.HelpCommand):
         :param command: The command to send the help message for
         :return: None
         """
-        embed = Embed(title=command.name, description=command.description or "No description",
+        embed = Embed(title="!" + command.name, description=command.description or "No description",
                       color=Color.blue())
         if command.aliases:
             embed.add_field(name="Aliases", value=", ".join(command.aliases), inline=False)
