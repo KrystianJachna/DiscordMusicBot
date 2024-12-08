@@ -1,7 +1,7 @@
 import asyncio
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 from uuid import uuid4
@@ -11,20 +11,29 @@ import yt_dlp
 from discord import FFmpegPCMAudio
 
 
-
 @dataclass
 class Song:
     """
-    Dataclass to store song information
+    Dataclass to store song information.
 
-    :param title:  The title of the song
-    :param url:    The url of the song
-    :param source: FFmpegPCMAudio source of the song
+    :param title:    The title of the song.
+    :param url:      The URL of the song.
+    :param duration: The duration of the song in seconds.
+    :param file_path: The path to the downloaded audio file (private).
     """
     title: str
     url: str
     duration: int
-    source: FFmpegPCMAudio
+    _file_path: Path = field(repr=False)
+
+    @property
+    def source(self) -> FFmpegPCMAudio:
+        """
+        Creates and returns a new FFmpegPCMAudio object from the file_path.
+
+        :return: FFmpegPCMAudio object.
+        """
+        return FFmpegPCMAudio(str(self._file_path))
 
 
 class MusicDownloader:
@@ -74,7 +83,7 @@ class MusicDownloader:
         random_file = f"{uuid4()}.mp3"
         random_file_path = self.DOWNLOAD_FOLDER / random_file
         os.rename(original_file_path, random_file_path)
-        song = Song(info['title'], info['webpage_url'], info['duration'], FFmpegPCMAudio(str(random_file_path)))
+        song = Song(info['title'], info['webpage_url'], info['duration'], random_file_path)
         self._downloaded_songs[url] = song
         return song
 
