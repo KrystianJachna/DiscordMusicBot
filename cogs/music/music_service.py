@@ -180,9 +180,9 @@ class MusicQueue(MusicManager):
         """
         self.downloading_queue.append(query)
         if not self.currently_downloading:
-            await self._process_queue(ctx)
+            await self._download(ctx)
 
-    async def _process_queue(self, ctx: commands.Context) -> None:
+    async def _download(self, ctx: commands.Context) -> None:
         """
         Process the downloading queue
 
