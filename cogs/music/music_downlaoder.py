@@ -55,6 +55,7 @@ class MusicDownloader:
             'no_playlist': True,
             'match_filter': yt_dlp.utils.match_filter_func("!is_live"),
         }
+        self._downloaded_songs: dict[str, Song] = {}
 
     async def download(self, arg: str) -> Song:
         """
@@ -64,13 +65,18 @@ class MusicDownloader:
         :return:   The song object
         """
         url = await asyncio.to_thread(self._get_url, arg)
+        if url in self._downloaded_songs:
+            logging.info(f"Song already downloaded: {url}")
+            return self._downloaded_songs[url]
         info = await asyncio.to_thread(self._extract_info, url)
         original_file = f"{info['id']}.mp3"
         original_file_path = self.DOWNLOAD_FOLDER / original_file
         random_file = f"{uuid4()}.mp3"
         random_file_path = self.DOWNLOAD_FOLDER / random_file
         os.rename(original_file_path, random_file_path)
-        return Song(info['title'], info['webpage_url'], info['duration'], FFmpegPCMAudio(str(random_file_path)))
+        song = Song(info['title'], info['webpage_url'], info['duration'], FFmpegPCMAudio(str(random_file_path)))
+        self._downloaded_songs[url] = song
+        return song
 
     def _extract_info(self, url: str) -> dict:
         """
@@ -89,7 +95,7 @@ class MusicDownloader:
         :param arg: The command argument
         :return:    The url
         """
-        return arg if re.match(self.youtube_regex, arg) else self._extract_url(arg)
+        return arg if self.youtube_regex.match(arg) else self._extract_url(arg)
 
     @staticmethod
     def _extract_url(query: str) -> str:
