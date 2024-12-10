@@ -59,7 +59,7 @@ async def main() -> None:
     """
     try:
         TOKEN = load_token()
-        setup_logging(logging.DEBUG)  # TODO: Change to logging.INFO for production
+        setup_logging(logging.INFO)
         async with bot:
             await bot.add_cog(MusicCog(bot))
             await bot.start(TOKEN)

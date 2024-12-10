@@ -7,7 +7,7 @@ from discord import VoiceClient, FFmpegPCMAudio
 from discord.ext import commands
 
 from .messages import *
-from .music_downlaoder import MusicDownloader
+from .music_downlaoder import MusicFactory
 
 
 class MusicManager(ABC):
@@ -108,8 +108,9 @@ class MusicPlayer:
             except MusicManager.EndOfPlaylistException:
                 break
             async with self._singing:
+                source = await self._now_playing.get_source()
                 self.voice_client.play(
-                    self._now_playing.source,
+                    source,
                     after=lambda _: asyncio.run_coroutine_threadsafe(
                         self._notify_singing(), self.event_loop
                     )
@@ -131,6 +132,7 @@ class MusicPlayer:
 
         :return: None
         """
+        self._now_playing = None
         async with self._singing:
             self._singing.notify_all()
 
@@ -175,11 +177,11 @@ class MusicQueue(MusicManager):
     """
 
     def __init__(self) -> None:
-        self.downloading_queue: list[Tuple[str, bool]] = []  # list of tuples containing the url/silent flag
-        self.currently_downloading = False
+        self.music_downloader = MusicFactory()
         self.music_queue: asyncio.Queue[Song] = asyncio.Queue()
+        self.downloading_queue: list[Tuple[str, str, bool]] = []  # (query, url, silent)
         self.downloaded_songs: list[str] = []
-        self.music_downloader = MusicDownloader(quiet=False)  # TODO: Change to True for production
+        self.currently_downloading = False
         self.download_task: Optional[asyncio.Task] = None
         self.song_currently_downloading: Optional[str] = None
         self._loop_music = False
@@ -192,15 +194,18 @@ class MusicQueue(MusicManager):
     def loop_music(self, value: bool) -> None:
         self._loop_music = value
 
-    async def add(self, query: str, ctx: Optional[commands.Context], *, silent: bool = False) -> None:
+    async def add(self, query: str, ctx: Optional[commands.Context], *, silent: bool = False,
+                  url: Optional[str] = None) -> None:
         """
-        Add a song to the queue, and start downloading it if there are no songs currently downloading
+        Add a song to the queue
 
-        :param query: url or search query
+        :param query: The search query
         :param ctx: The discord context
+        :param silent: If the bot should send a message to the channel
+        :param url: The url of the song
         :return: None
         """
-        self.downloading_queue.append((query, silent))
+        self.downloading_queue.append((query, url, silent))
         if not self.currently_downloading:
             await self._download(ctx)
 
@@ -217,16 +222,15 @@ class MusicQueue(MusicManager):
         while self.downloading_queue:
             message: Optional[Embed] = None
             self.currently_downloading = True
-            self.song_currently_downloading, silent = self.downloading_queue.pop(0)
+            self.song_currently_downloading, url, silent = self.downloading_queue.pop(0)
             try:
+                search = url or self.song_currently_downloading
                 self.download_task = asyncio.create_task(
-                    # change to self.music_downloader.download_song(self.song_currently_downloading) in order
-                    # to download the song instead of streaming it
-                    self.music_downloader.prepare_song(self.song_currently_downloading))
+                    self.music_downloader.prepare_song(search))
                 song = await self.download_task
             except asyncio.CancelledError:
                 continue
-            except MusicDownloader.NoResultsFound as e:
+            except MusicFactory.NoResultsFound as e:
                 message = no_results(self.song_currently_downloading)
                 continue
             except Exception as e:
@@ -253,7 +257,7 @@ class MusicQueue(MusicManager):
             raise MusicManager.EndOfPlaylistException
         song = await self.music_queue.get()
         if self.loop_music:
-            await self.add(song.url, None, silent=True)
+            await self.add(song.title, None, silent=True, url=song.url)
         self.downloaded_songs.remove(song.title)
         return song
 
@@ -292,5 +296,5 @@ class MusicQueue(MusicManager):
             '`' + title + '`' for title in self.downloaded_songs) + "\n" if self.downloaded_songs else ""
         now_downloading = "- `" + self.song_currently_downloading + '`\n' if self.currently_downloading else ""
         to_download = "- " + "\n- ".join(
-            '`' + query + '`' for query, _ in self.downloading_queue) + "\n" if self.downloading_queue else ""
+            '`' + query + '`' for query, _, _ in self.downloading_queue) + "\n" if self.downloading_queue else ""
         return downloaded + now_downloading + to_download

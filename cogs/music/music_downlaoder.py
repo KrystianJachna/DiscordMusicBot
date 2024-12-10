@@ -13,106 +13,97 @@ from discord import FFmpegPCMAudio
 @dataclass
 class Song:
     """
-    Dataclass to store song information.
+    Dataclass to store song information. The stream URL is prepared when the song source is requested.
 
-    :param title:    The title of the song.
-    :param url:      The URL of the song.
-    :param duration: The duration of the song in seconds.
-    :param file_path: The path to the downloaded audio file (private).
+    :param title:     The title of the song
+    :param url:       The URL of the song
+    :param duration:  The duration of the song
+    :param thumbnail: The thumbnail of the song
+    :param stream_url: The stream URL of the song
+
+    :param _ydl_opts: The youtube-dl options to extract the stream URL
     """
     title: str
     url: str
     duration: int
-    thumbnail: str | None
-    stream_url: str | None
+    thumbnail: Optional[str]
+    stream_url: Optional[str] = None
 
-    @property
-    def source(self) -> FFmpegPCMAudio:
+    _ydl_opts = {
+        'format': 'bestaudio/best',
+        'quiet': True,
+        'no_playlist': True,
+        'match_filter': yt_dlp.utils.match_filter_func("!is_live"),
+        'noplaylist': True
+    }
+    _ffmpeg_options = {
+        'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+        'options': '-vn'
+    }
+
+
+    async def get_source(self) -> FFmpegPCMAudio:
         """
-        Creates and returns a new FFmpegPCMAudio object for streaming.
+        Get the source of the song. Prepare the stream URL if it is not already prepared.
 
-        :return: FFmpegPCMAudio object.
+        :return: The source of the song
         """
-        ffmpeg_options = {
-            'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-            'options': '-vn'
-        }
-        return FFmpegPCMAudio(self.stream_url, **ffmpeg_options)
+        if not self.stream_url:
+            await asyncio.to_thread(self._prepare_stream)
+        return FFmpegPCMAudio(self.stream_url, **self._ffmpeg_options)
+
+    def _prepare_stream(self) -> None:
+        """
+        Prepare the stream URL of the song and store it in the stream_url attribute.
+
+        :return: None
+        """
+        with yt_dlp.YoutubeDL(self._ydl_opts) as ydl:
+            info = ydl.extract_info(self.url, download=False)
+        self.stream_url = info['url']
 
 
-class MusicDownloader:
+
+class MusicFactory:
     """
-    Class to prepare music from YouTube. Uses youtube-dl to extract information from a YouTube URL.
-
-    :param download_folder: The folder to download the music to
+    Class to download music from YouTube using youtube-dl.
     """
 
     class NoResultsFound(Exception):
+        """
+        Exception to raise when no results are found for a search query.
+
+        :param query: The search query
+        """
         def __init__(self, query: str) -> None:
             super().__init__(f"No results found for: {query}\nPlease try a different search query")
 
-    def __init__(self, download_folder: Optional[Path] = Path('downloads'), *, quiet: bool = False) -> None:
-        self.DOWNLOAD_FOLDER = download_folder
-        os.makedirs(self.DOWNLOAD_FOLDER, exist_ok=True)
+    def __init__(self):
         self.youtube_regex = re.compile(
             r"http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?‌​[\w\?‌​=]*)?"
         )
-        self.ydl_opts = {
-            'format': 'bestaudio/best',
-            'quiet': quiet,
-            'no_playlist': True,
-            'match_filter': yt_dlp.utils.match_filter_func("!is_live"),
-            'noplaylist': True
-        }
         self.extract_url_opts = {
-            'quiet': quiet,
+            'quiet': True,
             'extract_flat': True,
             'force_generic_extractor': True,
         }
         self._songs: dict[str, Song] = {}  # dict(url: Song)
 
-    async def prepare_song(self, arg: str) -> Song:
+    async def prepare_song(self, query: str) -> Song:
         """
         Get a song object with streaming URL from a YouTube URL or search query.
 
-        :param arg: The YouTube URL or search query.
+        :param query: The YouTube URL or search query.
         :return:    The song object.
         """
-        url = await asyncio.to_thread(self._get_url, arg)
-        if url in self._songs:
-            logging.info(f"Song already fetched: {url}")
-            return self._songs[url]
-        info = await asyncio.to_thread(self._extract_info, url)
-        song = Song(
-            title=info['title'],
-            url=url,
-            duration=info['duration'],
-            thumbnail=info.get('thumbnail', None),
-            stream_url=info['url'],
-        )
+        if query in self._songs:
+            return self._songs[query]
+        url, title, thumbnail, duration = await asyncio.to_thread(self._extract_info, query)
+        song = Song(title, url, duration, thumbnail)
         self._songs[url] = song
         return song
 
-    def _extract_info(self, url: str) -> dict:
-        """
-        Extract information from a YouTube URL without downloading the file.
-
-        :param url: The YouTube URL.
-        :return:    The information about the video.
-        """
-        with yt_dlp.YoutubeDL(self.ydl_opts) as ydl:
-            return ydl.extract_info(url, download=False)  # Set download=False
-
-    def _get_url(self, arg: str) -> str:
-        """
-        Get the url from a command argument
-
-        :param arg: The command argument
-        :return:    The url
-        """
-        return arg if self.youtube_regex.match(arg) else self._search_url(arg)
-
-    def _search_url(self, query: str) -> str:
+    def _extract_info(self, query: str) -> tuple[str, str, str, float]:
         """
         Search the url from a search query using youtube-dl
 
@@ -120,31 +111,18 @@ class MusicDownloader:
         :param query: The search query
         :return:      The url
         """
-        with yt_dlp.YoutubeDL(self.extract_url_opts) as ydl:
-            search = ydl.extract_info(f"ytsearch:{query}", download=False)
-        if not search['entries']:
-            raise MusicDownloader.NoResultsFound(query)
-        return search['entries'][0]['url']
+        query = query if self.youtube_regex.match(query) else f"ytsearch:{query}"
 
-    # currently using prepare_song to stream the song instead of downloading it
-    # async def download(self, arg: str) -> Song:
-    #     """
-    #     Download a song from a youtube url or search query
-    #
-    #     :param url: The youtube url or search query
-    #     :return:   The song object
-    #     """
-    #     url = await asyncio.to_thread(self._get_url, arg)
-    #     if url in self._downloaded_songs:
-    #         logging.info(f"Song already downloaded: {url}")
-    #         return self._downloaded_songs[url]
-    #     info = await asyncio.to_thread(self._extract_info, url)
-    #     yt_thumbnail = info.get('thumbnail', None)
-    #     original_file = f"{info['id']}.mp3"
-    #     original_file_path = self.DOWNLOAD_FOLDER / original_file
-    #     random_file = f"{uuid4()}.mp3"
-    #     random_file_path = self.DOWNLOAD_FOLDER / random_file
-    #     os.rename(original_file_path, random_file_path)
-    #     song = Song(info['title'], info['webpage_url'], info['duration'], yt_thumbnail, random_file_path)
-    #     self._downloaded_songs[url] = song
-    #     return song
+        with yt_dlp.YoutubeDL(self.extract_url_opts) as ydl:
+            search = ydl.extract_info(query, download=False)
+            print(search)
+        if not search['entries']:
+            raise MusicFactory.NoResultsFound(query)
+
+        song_info = search['entries'][0]
+        url = song_info['url']
+        title = song_info['title']
+        thumbnail = song_info['thumbnails'][0]['url']
+        duration = song_info['duration']
+
+        return url, title, thumbnail, duration
