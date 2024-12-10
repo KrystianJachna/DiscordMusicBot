@@ -68,6 +68,7 @@ class MusicCog(commands.Cog):
             return
         await self.music_player.stop()
         self.music_player = None
+        self.music_queue.loop_music = False
         await ctx.send(embed=stopped())
         try:
             self.check_listeners.stop()
