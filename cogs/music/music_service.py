@@ -252,10 +252,8 @@ class MusicQueue(MusicManager):
         if self.music_queue.empty() and not self.currently_downloading:
             raise MusicManager.EndOfPlaylistException
         song = await self.music_queue.get()
-        logging.info(f"Playing song: {song.title}")
         if self.loop_music:
             await self.add(song.url, None, silent=True)
-            logging.info(f"Looping song: {song.title}")
         self.downloaded_songs.remove(song.title)
         return song
 

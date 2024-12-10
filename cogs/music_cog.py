@@ -5,7 +5,6 @@ from discord.ext import commands, tasks
 
 from .music.messages import *
 from .music.music_service import MusicQueue, MusicPlayer
-import logging
 
 
 class MusicCog(commands.Cog):
@@ -26,7 +25,7 @@ class MusicCog(commands.Cog):
         Play a song in the voice channel
 
         :param ctx: The discord context
-        :param arg: The song to play passed as a url or search query by the user
+        :param search: The song to play passed as a url or search query by the user
         :return:
         """
         await self.music_queue.add(search, ctx)
