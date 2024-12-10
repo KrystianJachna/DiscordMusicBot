@@ -90,6 +90,7 @@ def clear() -> Embed:
 
 
 def looping(loop: bool) -> Embed:
+    description = f"**Status**: {'enabled' if loop else 'disabled'}"
     return Embed(title=f"Looping ⟳",
-                 description=f"Status {'enabled ✅' if loop else 'disabled ⛔'}",
+                 description=description,
                  color=0x00FF00)

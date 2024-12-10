@@ -110,6 +110,8 @@ class MusicCog(commands.Cog):
         :return: None
         """
         self.music_queue.loop_music = not self.music_queue.loop_music
+        if self.music_queue.loop_music and self.music_player and self.music_player.is_playing:
+            await self.music_queue.add(self.music_player.now_playing.url, None, silent=True)
         await ctx.send(embed=looping(self.music_queue.loop_music))
 
     @commands.command(description="View the current music queue")
