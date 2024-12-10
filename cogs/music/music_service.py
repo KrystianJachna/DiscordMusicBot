@@ -62,6 +62,10 @@ class MusicPlayer:
         self.keep_playing = True
         self._now_playing: Optional[Song] = None
 
+    @property
+    def now_playing(self) -> Optional[Song]:
+        return self._now_playing
+
     async def pause(self) -> None:
         """
         Pause the current song
@@ -252,8 +256,7 @@ class MusicQueue(MusicManager):
         if self.loop_music:
             await self.add(song.url, None, silent=True)
             logging.info(f"Looping song: {song.title}")
-        else:
-            self.downloaded_songs.remove(song.title)
+        self.downloaded_songs.remove(song.title)
         return song
 
     @property
