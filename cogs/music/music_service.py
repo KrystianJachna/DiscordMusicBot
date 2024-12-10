@@ -3,7 +3,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple
 
-from discord import VoiceClient
+from discord import VoiceClient, FFmpegPCMAudio
 from discord.ext import commands
 
 from .messages import *
@@ -171,11 +171,11 @@ class MusicQueue(MusicManager):
     """
 
     def __init__(self) -> None:
-        self.downloading_queue: list[Tuple[str, bool]] = [] # list of tuples containing the url/silent flag
+        self.downloading_queue: list[Tuple[str, bool]] = []  # list of tuples containing the url/silent flag
         self.currently_downloading = False
         self.music_queue: asyncio.Queue[Song] = asyncio.Queue()
         self.downloaded_songs: list[str] = []
-        self.music_downloader = MusicDownloader(quiet=False) # TODO: Change to True for production
+        self.music_downloader = MusicDownloader(quiet=False)  # TODO: Change to True for production
         self.download_task: Optional[asyncio.Task] = None
         self.song_currently_downloading: Optional[str] = None
         self._loop_music = False
@@ -216,7 +216,9 @@ class MusicQueue(MusicManager):
             self.song_currently_downloading, silent = self.downloading_queue.pop(0)
             try:
                 self.download_task = asyncio.create_task(
-                    self.music_downloader.download(self.song_currently_downloading))
+                    # change to self.music_downloader.download_song(self.song_currently_downloading) in order
+                    # to download the song instead of streaming it
+                    self.music_downloader.prepare_song(self.song_currently_downloading))
                 song = await self.download_task
             except asyncio.CancelledError:
                 continue
@@ -285,7 +287,8 @@ class MusicQueue(MusicManager):
 
         :return: A tuple containing the downloaded songs, the song currently downloading, and the songs to download
         """
-        downloaded = "- " + "\n- ".join('`' + title + '`' for title in self.downloaded_songs) if self.downloaded_songs else ""
+        downloaded = "- " + "\n- ".join(
+            '`' + title + '`' for title in self.downloaded_songs) if self.downloaded_songs else ""
         now_downloading = "- `" + self.song_currently_downloading + '`' if self.currently_downloading else ""
         to_download = "- " + "\n- ".join(
             '`' + query + '`' for query, _ in self.downloading_queue) if self.downloading_queue else ""
