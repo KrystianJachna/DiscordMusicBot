@@ -11,6 +11,7 @@ def added_to_queue(song: Song, queue_elements: int, loop_enabled: bool) -> Embed
                     color=0x00FF00)
     message.add_field(name="Duration", value=str(timedelta(seconds=song.duration)))
     message.add_field(name="Queue Length", value=queue_elements)
+    message.set_thumbnail(url=song.thumbnail or song.url)
     if loop_enabled:
         message.set_footer(text="Looping is enabled")
     return message
@@ -24,7 +25,7 @@ def download_error(query: str) -> Embed:
 
 def no_results(query: str) -> Embed:
     return Embed(title="No Results",
-                 description=f"No results found for: {query}\nPlease try a different search query",
+                 description=f"No results found for: \n{query}\nPlease try a different search query",
                  color=0xFF0000)
 
 
