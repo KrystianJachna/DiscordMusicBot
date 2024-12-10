@@ -3,13 +3,13 @@ from discord.ext import commands
 
 
 def command_not_found() -> Embed:
-    return Embed(title="Command Not Found",
+    return Embed(title="Command Not Found 🤷‍♂️",
                  color=0xFF6900)
 
 
-def missing_argument(arg: str) -> Embed:
-    return Embed(title=f"Command Error",
-                 description=f"Missing required argument: {arg}",
+def missing_argument(arg: str, command: str) -> Embed:
+    return Embed(title=f"Missing Argument 🤷‍♂️",
+                 description=f"Usage: `!{command} {arg}`\nType `!help {command}` for more information",
                  color=0xFF0000)
 
 
@@ -37,7 +37,7 @@ class HelpMessage(commands.HelpCommand):
         
         The available commands are:
         """
-        embed = Embed(title="Help", description=desc, color=Color.blue())
+        embed = Embed(title="Help 🆘", description=desc, color=Color.blue())
         for cog, commands in mapping.items():
             command_list = [command.name for command in commands]
             if command_list:
