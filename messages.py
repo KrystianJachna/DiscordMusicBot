@@ -7,6 +7,12 @@ def command_not_found() -> Embed:
                  color=0xFF6900)
 
 
+def missing_argument(arg: str) -> Embed:
+    return Embed(title=f"Command Error",
+                 description=f"Missing required argument: {arg}",
+                 color=0xFF0000)
+
+
 class HelpMessage(commands.HelpCommand):
     """
     Custom help command for the bot

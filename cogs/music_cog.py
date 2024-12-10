@@ -21,7 +21,7 @@ class MusicCog(commands.Cog):
         self.music_player: Optional[MusicPlayer] = None
 
     @commands.command(description="Play a song or add it to the queue, use !play <url or search query>")
-    async def play(self, ctx: commands.Context, *, arg) -> None:
+    async def play(self, ctx: commands.Context, *, search: str) -> None:
         """
         Play a song in the voice channel
 
@@ -29,7 +29,7 @@ class MusicCog(commands.Cog):
         :param arg: The song to play passed as a url or search query by the user
         :return:
         """
-        await self.music_queue.add(arg, ctx)
+        await self.music_queue.add(search, ctx)
         try:
             self.check_listeners.start()
         except RuntimeError:
