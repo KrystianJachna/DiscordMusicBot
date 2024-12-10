@@ -5,6 +5,8 @@ from discord import Embed
 from .music_downlaoder import Song
 
 
+# Embed messages for the music cog
+
 def added_to_queue(song: Song, queue_elements: int, loop_enabled: bool) -> Embed:
     message = Embed(title="Song Added to Queue 🎶",
                     description=f"[{song.title}]({song.url})\n",
@@ -66,26 +68,26 @@ def stopped() -> Embed:
                  color=0x00FF00)
 
 
-def queue(downloaded: str, now_downloading: str, to_download: str, now_playing: str, looping_enabled: bool) -> Embed:
-    if any([downloaded, now_downloading, to_download, now_playing]):
+def queue(queue_songs: str, now_playing: str, looping_enabled: bool) -> Embed:
+    if queue_songs or now_playing:
         message = Embed(title="Music Queue 🎶",
-                        description="**Now Playing:** " + now_playing,
+                        description="**Now Playing:** " + (now_playing if now_playing else "*waiting...*"),
                         color=0x00FF00)
-        message.add_field(name="Downloaded:", value=downloaded)
-        message.add_field(name="Downloading:", value=now_downloading)
-        message.add_field(name="To Download:", value=to_download)
+        message.add_field(name="Queue:", value=queue_songs if queue_songs else "*The queue is empty*")
     else:
         message = Embed(title="Music Queue 🎶",
                         description="The music queue is empty",
-                        color=0xFF0000)
+                        color=0xFF6900)
     if looping_enabled:
         message.set_footer(text="Looping is enabled")
     return message
+
 
 def clear() -> Embed:
     return Embed(title="Queue Cleared 🧹",
                  description="The music queue has been cleared",
                  color=0x00FF00)
+
 
 def looping(loop: bool) -> Embed:
     return Embed(title=f"Looping ⟳",

@@ -279,7 +279,7 @@ class MusicQueue(MusicManager):
         self.music_queue = asyncio.Queue()
         self.downloaded_songs.clear()
 
-    def get_queue_info(self) -> Tuple[str, str, str]:
+    def get_queue_info(self) -> str:
         """
         Show the songs in the queue
 
@@ -288,9 +288,8 @@ class MusicQueue(MusicManager):
         :return: A tuple containing the downloaded songs, the song currently downloading, and the songs to download
         """
         downloaded = "- " + "\n- ".join(
-            '`' + title + '`' for title in self.downloaded_songs) if self.downloaded_songs else ""
-        now_downloading = "- `" + self.song_currently_downloading + '`' if self.currently_downloading else ""
+            '`' + title + '`' for title in self.downloaded_songs) + "\n" if self.downloaded_songs else ""
+        now_downloading = "- `" + self.song_currently_downloading + '`\n' if self.currently_downloading else ""
         to_download = "- " + "\n- ".join(
-            '`' + query + '`' for query, _ in self.downloading_queue) if self.downloading_queue else ""
-
-        return downloaded, now_downloading, to_download
+            '`' + query + '`' for query, _ in self.downloading_queue) + "\n" if self.downloading_queue else ""
+        return downloaded + now_downloading + to_download

@@ -119,9 +119,9 @@ class MusicCog(commands.Cog):
         :param ctx: The discord context
         :return: None
         """
-        downloaded, now_downloading, to_download = self.music_queue.get_queue_info()
+        queue_songs = self.music_queue.get_queue_info()
         now_playing = self.music_player.get_now_playing() if self.music_player else ""
-        await ctx.send(embed=queue(downloaded, now_downloading, to_download, now_playing, self.music_queue.loop_music))
+        await ctx.send(embed=queue(queue_songs, now_playing, self.music_queue.loop_music))
 
     @commands.command(description="Clear all songs from the queue")
     async def clear(self, ctx: commands.Context) -> None:
