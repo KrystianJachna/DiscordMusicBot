@@ -86,13 +86,13 @@ class MusicDownloader:
             logging.info(f"Song already downloaded: {url}")
             return self._downloaded_songs[url]
         info = await asyncio.to_thread(self._extract_info, url)
-        thumbnail = info.get('thumbnail', None)
+        yt_thumbnail = info.get('thumbnail', None)
         original_file = f"{info['id']}.mp3"
         original_file_path = self.DOWNLOAD_FOLDER / original_file
         random_file = f"{uuid4()}.mp3"
         random_file_path = self.DOWNLOAD_FOLDER / random_file
         os.rename(original_file_path, random_file_path)
-        song = Song(info['title'], info['webpage_url'], info['duration'], thumbnail, random_file_path)
+        song = Song(info['title'], info['webpage_url'], info['duration'], yt_thumbnail, random_file_path)
         self._downloaded_songs[url] = song
         return song
 
