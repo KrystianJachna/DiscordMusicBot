@@ -24,6 +24,7 @@ class Song:
     url: str
     duration: int
     thumbnail: str | None
+    stream_url: str | None
 
     @property
     def source(self) -> FFmpegPCMAudio:
@@ -32,11 +33,12 @@ class Song:
 
         :return: FFmpegPCMAudio object.
         """
+        logging.info(self.stream_url)
         ffmpeg_options = {
             'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
             'options': '-vn'
         }
-        return FFmpegPCMAudio(self.url, **ffmpeg_options)
+        return FFmpegPCMAudio(self.stream_url, **ffmpeg_options)
 
 
 class MusicDownloader:
@@ -84,9 +86,10 @@ class MusicDownloader:
         info = await asyncio.to_thread(self._extract_info, url)
         song = Song(
             title=info['title'],
-            url=info['url'],
+            url=url,
             duration=info['duration'],
-            thumbnail=info.get('thumbnail', None)
+            thumbnail=info.get('thumbnail', None),
+            stream_url=info['url'],
         )
         self._songs[url] = song
         return song
