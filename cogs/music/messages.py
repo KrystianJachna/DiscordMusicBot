@@ -58,7 +58,7 @@ def not_playing() -> Embed:
 
 def not_connected() -> Embed:
     return Embed(title="Not Connected 🔇 ",
-                 description="I am not connected to a voice channel",
+                 description="Bot needs to be connected to a voice channel to use this command",
                  color=0xFF6900)
 
 
@@ -88,6 +88,15 @@ def clear() -> Embed:
                  description="The music queue has been cleared",
                  color=0x00FF00)
 
+def paused(song_title: str) -> Embed:
+    return Embed(title="Paused ⏸️",
+                 description=f"The song **{song_title}** has been paused",
+                 color=0x00FF00)
+
+def resumed(song_title: str) -> Embed:
+    return Embed(title="Resumed ▶️",
+                 description=f"The song **{song_title}** has been resumed",
+                 color=0x00FF00)
 
 def looping(loop: bool) -> Embed:
     description = f"**Status**: {'enabled' if loop else 'disabled'}"

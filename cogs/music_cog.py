@@ -62,9 +62,6 @@ class MusicCog(commands.Cog):
         :param ctx: The discord context
         :return: None
         """
-        if not self.music_player:
-            await ctx.send(embed=not_connected())
-            return
         await self.music_player.stop()
         self.music_player = None
         self.music_queue.loop_music = False
@@ -84,6 +81,7 @@ class MusicCog(commands.Cog):
         """
         try:
             await self.music_player.pause()
+            await ctx.send(embed=paused(self.music_player.now_playing.title))
         except MusicPlayer.NotPlayingException:
             await ctx.send(embed=not_playing())
 
@@ -97,6 +95,7 @@ class MusicCog(commands.Cog):
         """
         try:
             await self.music_player.resume()
+            await ctx.send(embed=resumed(self.music_player.now_playing.title))
         except MusicPlayer.NotPlayingException:
             await ctx.send(embed=not_playing())
 
@@ -151,9 +150,9 @@ class MusicCog(commands.Cog):
                 self.check_listeners.stop()
 
     @play.before_invoke
-    async def ensure_voice(self, ctx):
+    async def connect_on_command(self, ctx: commands.Context) -> None:
         """
-        Ensure the bot is in a voice channel before playing a song
+        Ensure the bot is in a voice channel before command
 
         :param ctx: The discord context
         :return: None
@@ -165,3 +164,20 @@ class MusicCog(commands.Cog):
             else:
                 await ctx.send(embed=not_in_voice_channel())
                 raise commands.CommandError("Author not in a voice channel.")
+
+    @skip.before_invoke
+    @stop.before_invoke
+    @pause.before_invoke
+    @resume.before_invoke
+    @queue.before_invoke
+    @clear.before_invoke
+    async def ensure_voice(self, ctx: commands.Context) -> None:
+        """
+        Ensure the bot is in a voice channel in order to use the command
+
+        :param ctx: The discord context
+        :return: None
+        """
+        if ctx.voice_client is None:
+            await ctx.send(embed=not_connected())
+            raise commands.CommandError("Bot not connected to a voice channel.")
