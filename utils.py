@@ -7,23 +7,29 @@ from sys import stderr
 from dotenv import load_dotenv
 
 
+
 def load_token() -> str:
     """
-    Load the discord token from the .env file
+    Load the discord token either from the environment variables (e.g., in Docker)
+    or from the .env file (e.g., locally).
 
-    :raises Exception: If the .env file does not exist
-    :raises Exception: If the token is not specified in the .env file
+    :raises Exception: If neither environment variable nor .env file provides the token
     :return: The discord token
     """
-    if not load_dotenv():
-        raise Exception(
-            "Failed to load .env file, please ensure it exists in the root directory of the project."
-        )
+    # Try to get the token directly from environment variables (Docker scenario)
     token = getenv("DISCORD_TOKEN")
+
+    # If not found, fallback to loading .env file for local development
+    if not token:
+        load_dotenv()  # Attempt to load .env file
+        token = getenv("DISCORD_TOKEN")
+
+    # Raise an exception if the token is still not found
     if not token:
         raise Exception(
-            "Failed to load token from .env file, please specify the token in the .env file. as DISCORD_TOKEN"
+            "Failed to load token. Ensure DISCORD_TOKEN is set in Docker environment or in the .env file."
         )
+    print(token)
     return token
 
 
