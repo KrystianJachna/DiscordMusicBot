@@ -64,6 +64,7 @@ async def main() -> None:
             await bot.start(token)
     except discord.LoginFailure:
         logging.error("Failed to log in. Ensure the token is correct.")
+        logging.debug(format_exc())
     except Exception as e:
         logging.error(e)
         logging.debug(format_exc())
