@@ -2,6 +2,7 @@
 import asyncio
 import logging
 from sys import stderr
+from traceback import format_exc
 
 import discord
 
@@ -35,7 +36,8 @@ async def on_ready() -> None:
 @bot.event
 async def on_command_error(ctx: commands.Context, error: Exception) -> None:
     """
-    Send a message to the channel if a command is not found
+    Discord event that is triggered when a command error occurs either
+    through user input or through an error in the command itself.
 
     :param ctx: Discord context
     :param error: The error that occurred
@@ -45,9 +47,8 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
         await ctx.send(embed=command_not_found())
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.send(embed=missing_argument(error.param.name, ctx.command.name))
-    else:
-        logging.error(error)
-
+    else: # error occurred in the command code
+        logging.error(format_exc())
 
 async def main() -> None:
     """
