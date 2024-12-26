@@ -43,7 +43,7 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
     """
     if isinstance(error, commands.CommandNotFound):
         await ctx.send(embed=command_not_found())
-    if isinstance(error, commands.MissingRequiredArgument):
+    elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send(embed=missing_argument(error.param.name, ctx.command.name))
     else: # error occurred in the command code
         await ctx.send(embed=command_error())
