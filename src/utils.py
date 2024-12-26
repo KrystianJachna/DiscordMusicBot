@@ -1,8 +1,7 @@
-# utils.py
 
 import logging
 from os import getenv
-from sys import stderr
+from sys import stdout
 
 from dotenv import load_dotenv
 
@@ -42,5 +41,5 @@ def setup_logging(level: int = logging.INFO) -> None:
     logging.basicConfig(
         level=level,
         format="%(asctime)-15s - %(name)-25s - %(levelname)-5s - %(message)s",
-        stream=stderr
+        stream=stdout
     )

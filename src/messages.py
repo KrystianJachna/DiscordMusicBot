@@ -12,6 +12,12 @@ def missing_argument(arg: str, command: str) -> Embed:
                  description=f"Usage: `!{command} {arg}`\nType `!help {command}` for more information",
                  color=0xFF0000)
 
+def command_error() -> Embed:
+    return Embed(title="Command Error ⛔",
+                 description="An error occurred while executing the command"
+                             "\nCheck the logs for more information",
+                 color=0xFF0000)
+
 
 class HelpMessage(commands.HelpCommand):
     """

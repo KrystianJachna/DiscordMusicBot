@@ -1,7 +1,6 @@
 
 import asyncio
 import logging
-from sys import stderr
 from traceback import format_exc
 
 import discord
@@ -19,7 +18,6 @@ bot: commands.Bot = commands.Bot(
     intents=intents,
     help_command=HelpMessage()
 )
-
 
 @bot.event
 async def on_ready() -> None:
@@ -48,7 +46,9 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.send(embed=missing_argument(error.param.name, ctx.command.name))
     else: # error occurred in the command code
-        logging.error(format_exc())
+        await ctx.send(embed=command_error())
+        logging.error(error)
+        logging.debug(format_exc())
 
 async def main() -> None:
     """
@@ -57,15 +57,16 @@ async def main() -> None:
     :return: None
     """
     try:
-        TOKEN = load_token()
-        setup_logging(logging.INFO)
+        token = load_token()
+        setup_logging(logging.DEBUG)
         async with bot:
             await bot.add_cog(MusicCog(bot))
-            await bot.start(TOKEN)
+            await bot.start(token)
     except discord.LoginFailure:
-        print("Failed to login to discord, please check the token and try again.", file=stderr)
+        logging.error("Failed to log in. Ensure the token is correct.")
     except Exception as e:
-        print(f"An error occurred: {e}", file=stderr)
+        logging.error(e)
+        logging.debug(format_exc())
 
 
 if __name__ == '__main__':
