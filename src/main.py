@@ -1,11 +1,9 @@
-# main.py
 
 import asyncio
 import logging
 from sys import stderr
 
 import discord
-from discord.ext import commands
 
 from cogs.music_cog import MusicCog
 from utils import load_token, setup_logging

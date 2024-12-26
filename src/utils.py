@@ -29,7 +29,6 @@ def load_token() -> str:
         raise Exception(
             "Failed to load token. Ensure DISCORD_TOKEN is set in Docker environment or in the .env file."
         )
-    print(token)
     return token
 
 
