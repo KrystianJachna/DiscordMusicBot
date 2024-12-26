@@ -4,7 +4,7 @@ from os import getenv
 from sys import stdout
 
 from dotenv import load_dotenv
-
+import os
 
 
 def load_token() -> str:
@@ -31,15 +31,25 @@ def load_token() -> str:
     return token
 
 
-def setup_logging(level: int = logging.INFO) -> None:
+def setup_logging(level: int = logging.INFO, enable_file_logging: bool = False) -> None:
     """
     Setup logging for the bot
 
     :param level: The logging level to use
+    :param enable_file_logging: If the logs should be written to a file
     :return: None
     """
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)-15s - %(name)-25s - %(levelname)-5s - %(message)s",
-        stream=stdout
-    )
+    logger = logging.getLogger()
+    logger.setLevel(level)
+    formatter = logging.Formatter("%(asctime)-15s - %(name)-25s - %(levelname)-5s - %(message)s")
+
+    console_handler = logging.StreamHandler(stream=stdout)
+    console_handler.setFormatter(formatter)
+    console_handler.setLevel(level)
+    logger.addHandler(console_handler)
+
+    if enable_file_logging:
+        file_handler = logging.FileHandler("bot.log", mode="w")
+        file_handler.setFormatter(formatter)
+        file_handler.setLevel(level)
+        logger.addHandler(file_handler)
