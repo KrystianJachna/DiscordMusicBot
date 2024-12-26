@@ -46,7 +46,6 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send(embed=missing_argument(error.param.name, ctx.command.name))
     else: # error occurred in the command code
-        await ctx.send(embed=command_error())
         logging.error(error)
         logging.debug(format_exc())
 
