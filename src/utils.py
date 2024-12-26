@@ -29,7 +29,7 @@ def load_token() -> str:
 
 def setup_logging(level: int = logging.INFO, enable_file_logging: bool = False) -> None:
     """
-    Setup logging for the bot
+    Setup logging for the bot. The logs will be written to stdout and optionally to a file.
 
     :param level: The logging level to use
     :param enable_file_logging: If the logs should be written to a file
