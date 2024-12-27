@@ -7,16 +7,9 @@ from dotenv import load_dotenv
 
 
 def load_token() -> str:
-    """
-    Load the discord token either from the environment variables (e.g., in Docker)
-    or from the .env file (e.g., locally).
+    token = getenv("DISCORD_TOKEN")  # Check if the token is set in the Docker environment
 
-    :raises Exception: If neither environment variable nor .env file provides the token
-    :return: The discord token
-    """
-    token = getenv("DISCORD_TOKEN")
-
-    if not token:
+    if not token:  # If the token is not set in the Docker environment, check the .env file
         load_dotenv()
         token = getenv("DISCORD_TOKEN")
 
@@ -28,13 +21,6 @@ def load_token() -> str:
 
 
 def setup_logging(level: int = logging.INFO, enable_file_logging: bool = False) -> None:
-    """
-    Setup logging for the bot. The logs will be written to stdout and optionally to a file.
-
-    :param level: The logging level to use
-    :param enable_file_logging: If the logs should be written to a file
-    :return: None
-    """
     logger = logging.getLogger()
     logger.setLevel(level)
     formatter = logging.Formatter("%(asctime)-15s - %(name)-25s - %(levelname)-5s - %(message)s")

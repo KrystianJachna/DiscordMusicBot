@@ -10,7 +10,7 @@ from utils import load_token, setup_logging
 from messages import *
 
 intents = discord.Intents.default()
-intents.message_content = True
+intents.message_content = True  # Required for commands to be able to read arguments
 
 bot: commands.Bot = commands.Bot(
     command_prefix="!",
