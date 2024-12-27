@@ -5,6 +5,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 import logging
+from traceback import format_exc
+from cachetools import LRUCache
+from abc import ABC, abstractmethod
 
 import yt_dlp
 from discord import FFmpegPCMAudio
@@ -87,7 +90,7 @@ class MusicFactory:
             'extract_flat': True,
             'force_generic_extractor': True,
         }
-        self._songs: dict[str, Song] = {}  # dict(url: Song)
+        self.song_cache: SongsCache = LRUSongsCache()
 
     async def prepare_song(self, query: str) -> Song:
         """
@@ -96,12 +99,13 @@ class MusicFactory:
         :param query: The YouTube URL or search query.
         :return:    The song object.
         """
-        if query in self._songs:
-            return self._songs[query]
+        if query in self.song_cache:
+            return self.song_cache[query]
         url, title, thumbnail, duration = await asyncio.to_thread(self._extract_info, query)
         song = Song(title, url, duration, thumbnail)
-        self._songs[url] = song
+        self.song_cache[query] = song
         return song
+
 
     def _extract_info(self, query: str) -> tuple[str, str, str, float]:
         """
@@ -126,3 +130,37 @@ class MusicFactory:
         duration = song_info['duration']
 
         return url, title, thumbnail, duration
+
+class SongsCache(ABC):
+    @abstractmethod
+    def __contains__(self, query: str) -> bool:
+        pass
+
+    @abstractmethod
+    def __getitem__(self, query: str) -> Song:
+        pass
+
+    @abstractmethod
+    def __setitem__(self, query: str, song: Song) -> None:
+        pass
+
+class LRUSongsCache(SongsCache):
+    def __init__(self, song_size: int = 100, query_size: int = 300):
+        self._url_cache: LRUCache[str, Song] = LRUCache(maxsize=song_size)       # url -> song
+        self._query_cache: LRUCache[str, str] = LRUCache(maxsize=query_size)     # query -> url
+        self._youtube_regex = re.compile(
+            r"http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?‌​[\w\?‌​=]*)?"
+        )
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._url_cache or key in self._query_cache
+
+    def __getitem__(self, key: str) -> Song:
+        if key in self._url_cache:
+            return self._url_cache[key]
+        return self._url_cache[self._query_cache[key]]
+
+    def __setitem__(self, query: str, song: Song) -> None:
+        self._url_cache[song.url] = song
+        if self._youtube_regex.match(query):
+            self._query_cache[query] = song.url
