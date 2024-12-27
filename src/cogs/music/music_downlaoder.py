@@ -8,6 +8,7 @@ import logging
 from traceback import format_exc
 from cachetools import LRUCache
 from abc import ABC, abstractmethod
+from youtube_search import YoutubeSearch
 
 import yt_dlp
 from discord import FFmpegPCMAudio
@@ -30,20 +31,12 @@ class Song:
     url: str
     duration: int
     thumbnail: Optional[str]
-    stream_url: Optional[str] = None
+    _stream_url: Optional[str]
 
-    _ydl_opts = {
-        'format': 'bestaudio/best',
-        'quiet': True,
-        'no_playlist': True,
-        'match_filter': yt_dlp.utils.match_filter_func("!is_live"),
-        'noplaylist': True
-    }
     _ffmpeg_options = {
         'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
         'options': '-vn'
     }
-
 
     async def get_source(self) -> FFmpegPCMAudio:
         """
@@ -51,20 +44,7 @@ class Song:
 
         :return: The source of the song
         """
-        if not self.stream_url:
-            await asyncio.to_thread(self._prepare_stream)
-        return FFmpegPCMAudio(self.stream_url, **self._ffmpeg_options)
-
-    def _prepare_stream(self) -> None:
-        """
-        Prepare the stream URL of the song and store it in the stream_url attribute.
-
-        :return: None
-        """
-        with yt_dlp.YoutubeDL(self._ydl_opts) as ydl:
-            info = ydl.extract_info(self.url, download=False)
-        self.stream_url = info['url']
-
+        return FFmpegPCMAudio(self._stream_url, **self._ffmpeg_options)
 
 
 class MusicFactory:
@@ -78,6 +58,7 @@ class MusicFactory:
 
         :param query: The search query
         """
+
         def __init__(self, query: str) -> None:
             super().__init__(f"No results found for: {query}\nPlease try a different search query")
 
@@ -85,10 +66,10 @@ class MusicFactory:
         self._youtube_regex = re.compile(
             r"http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?‌​[\w\?‌​=]*)?"
         )
-        self._extract_url_opts = {
+        self._yt_dlp_opts = {
+            'format': 'bestaudio/best',
             'quiet': True,
-            'extract_flat': True,
-            'force_generic_extractor': True,
+            'match_filter': '!is_live',
         }
         self._song_cache: SongsCache = LRUSongsCache()
 
@@ -101,35 +82,39 @@ class MusicFactory:
         """
         if query in self._song_cache:
             return self._song_cache[query]
-        url, title, thumbnail, duration = await asyncio.to_thread(self._extract_info, query)
-        song = Song(title, url, duration, thumbnail)
+        song = await asyncio.to_thread(self._construct_song, query)
         self._song_cache[query] = song
         return song
 
+    def _construct_song(self, query: str) -> Song:
+        url = self._get_url(query)
+        with yt_dlp.YoutubeDL(self._yt_dlp_opts) as ydl:
+            try:
+                info = ydl.extract_info(url, download=False)
+                logging.debug(f"Song info: {info.keys()}")
+            except yt_dlp.utils.DownloadError as e:
+                logging.error(f"Error downloading song: {e}")
+                logging.debug(format_exc())
+                raise MusicFactory.NoResultsFound(query)
 
-    def _extract_info(self, query: str) -> tuple[str, str, str, float]:
-        """
-        Search the url from a search query using youtube-dl
+        title = info['title']
+        thumbnail = info['thumbnails'][0]['url']
+        duration = info['duration']
+        stream_url = info['url']
 
-        :raise ValueError: If the search query does not return any results
-        :param query: The search query
-        :return:      The url
-        """
-        query = query if self._youtube_regex.match(query) else f"ytsearch:{query}"
+        logging.debug(f"Song: {title} - {url} - {duration} - {thumbnail} - {stream_url}")
 
-        with yt_dlp.YoutubeDL(self._extract_url_opts) as ydl:
-            search = ydl.extract_info(query, download=False)
-            print(search)
-        if not search['entries']:
+        return Song(title, url, duration, thumbnail, stream_url)
+
+    def _get_url(self, query: str) -> str:
+        if self._youtube_regex.match(query):
+            return query
+        search = YoutubeSearch(query, max_results=1).to_dict()
+        if not search:
+            logging.debug(f"_get_url: No results found for: {query}")
             raise MusicFactory.NoResultsFound(query)
+        return f"https://www.youtube.com/watch?v={search[0]['id']}"
 
-        song_info = search['entries'][0]
-        url = song_info['url']
-        title = song_info['title']
-        thumbnail = song_info['thumbnails'][0]['url']
-        duration = song_info['duration']
-
-        return url, title, thumbnail, duration
 
 class SongsCache(ABC):
     @abstractmethod
@@ -144,10 +129,11 @@ class SongsCache(ABC):
     def __setitem__(self, query: str, song: Song) -> None:
         pass
 
+
 class LRUSongsCache(SongsCache):
     def __init__(self, song_size: int = 100, query_size: int = 300):
-        self._url_cache: LRUCache[str, Song] = LRUCache(maxsize=song_size)       # url -> song
-        self._query_cache: LRUCache[str, str] = LRUCache(maxsize=query_size)     # query -> url
+        self._url_cache: LRUCache[str, Song] = LRUCache(maxsize=song_size)  # url -> song
+        self._query_cache: LRUCache[str, str] = LRUCache(maxsize=query_size)  # query -> url
         self._youtube_regex = re.compile(
             r"http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?‌​[\w\?‌​=]*)?"
         )
