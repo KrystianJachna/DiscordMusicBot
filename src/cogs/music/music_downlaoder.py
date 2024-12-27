@@ -82,15 +82,15 @@ class MusicFactory:
             super().__init__(f"No results found for: {query}\nPlease try a different search query")
 
     def __init__(self):
-        self.youtube_regex = re.compile(
+        self._youtube_regex = re.compile(
             r"http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?‌​[\w\?‌​=]*)?"
         )
-        self.extract_url_opts = {
+        self._extract_url_opts = {
             'quiet': True,
             'extract_flat': True,
             'force_generic_extractor': True,
         }
-        self.song_cache: SongsCache = LRUSongsCache()
+        self._song_cache: SongsCache = LRUSongsCache()
 
     async def prepare_song(self, query: str) -> Song:
         """
@@ -99,11 +99,11 @@ class MusicFactory:
         :param query: The YouTube URL or search query.
         :return:    The song object.
         """
-        if query in self.song_cache:
-            return self.song_cache[query]
+        if query in self._song_cache:
+            return self._song_cache[query]
         url, title, thumbnail, duration = await asyncio.to_thread(self._extract_info, query)
         song = Song(title, url, duration, thumbnail)
-        self.song_cache[query] = song
+        self._song_cache[query] = song
         return song
 
 
@@ -115,9 +115,9 @@ class MusicFactory:
         :param query: The search query
         :return:      The url
         """
-        query = query if self.youtube_regex.match(query) else f"ytsearch:{query}"
+        query = query if self._youtube_regex.match(query) else f"ytsearch:{query}"
 
-        with yt_dlp.YoutubeDL(self.extract_url_opts) as ydl:
+        with yt_dlp.YoutubeDL(self._extract_url_opts) as ydl:
             search = ydl.extract_info(query, download=False)
             print(search)
         if not search['entries']:
