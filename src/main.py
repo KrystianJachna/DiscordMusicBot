@@ -21,11 +21,6 @@ bot: commands.Bot = commands.Bot(
 
 @bot.event
 async def on_ready() -> None:
-    """
-    Print a message to the console when the bot is ready
-
-    :return: None
-    """
     message = f"Logged in as {bot.user} (ID: {bot.user.id})"
     logging.info(message)
     logging.info("-" * len(message))
@@ -50,11 +45,6 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
         logging.debug(format_exc())
 
 async def main() -> None:
-    """
-    Main function to start the bot
-
-    :return: None
-    """
     try:
         token = load_token()
         setup_logging(logging.DEBUG, enable_file_logging=True) # TODO: Change to INFO for production
