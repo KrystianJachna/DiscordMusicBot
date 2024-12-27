@@ -4,9 +4,6 @@ from discord import Embed
 
 from .music_downlaoder import Song
 
-
-# Embed messages for the music cog
-
 def added_to_queue(song: Song, queue_elements: int, loop_enabled: bool) -> Embed:
     message = Embed(title="Song Added to Queue 🎶",
                     description=f"[{song.title}]({song.url})\n",
@@ -30,10 +27,12 @@ def no_results(query: str) -> Embed:
                  description=f"No results found for: \n*{query}*\nPlease try a different search query",
                  color=0xFF0000)
 
+
 def live_stream(query: str) -> Embed:
     return Embed(title="Live Stream 🎥",
                  description=f"Live stream found for: \n*{query}*\nPlease try a different search query",
                  color=0xFF0000)
+
 
 def skip_error() -> Embed:
     return Embed(title="Skip Error ⛔",
@@ -92,15 +91,18 @@ def clear() -> Embed:
                  description="The music queue has been cleared",
                  color=0x00FF00)
 
+
 def paused(song_title: str) -> Embed:
     return Embed(title="Paused ⏸️",
                  description=f"The song **{song_title}** has been paused",
                  color=0x00FF00)
 
+
 def resumed(song_title: str) -> Embed:
     return Embed(title="Resumed ▶️",
                  description=f"The song **{song_title}** has been resumed",
                  color=0x00FF00)
+
 
 def looping(loop: bool) -> Embed:
     description = f"**Status**: {'enabled' if loop else 'disabled'}"
