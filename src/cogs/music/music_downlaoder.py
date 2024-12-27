@@ -100,12 +100,11 @@ class MusicFactory:
             try:
                 info = ydl.extract_info(url, download=False)
             except yt_dlp.utils.DownloadError as e:
-                logging.error(f"Error downloading song: {e}")
                 logging.debug(format_exc())
                 raise MusicFactory.NoResultsFoundException(query)
 
         if info.get('is_live', False):
-            logging.error(f"Live stream found for: {query}")
+            logging.debug(f"Live stream found for: {query}")
             raise MusicFactory.LiveFoundException(query)
 
         title = info['title']
