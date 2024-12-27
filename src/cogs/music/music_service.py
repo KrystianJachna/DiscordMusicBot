@@ -230,8 +230,11 @@ class MusicQueue(MusicManager):
                 song = await self.download_task
             except asyncio.CancelledError:
                 continue
-            except MusicFactory.NoResultsFound as e:
+            except MusicFactory.NoResultsFoundException as e:
                 message = no_results(self.song_currently_downloading)
+                continue
+            except MusicFactory.LiveFoundException as e:
+                message = live_stream(self.song_currently_downloading)
                 continue
             except Exception as e:
                 message = download_error(self.song_currently_downloading)

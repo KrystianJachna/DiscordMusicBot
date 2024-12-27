@@ -30,6 +30,10 @@ def no_results(query: str) -> Embed:
                  description=f"No results found for: \n*{query}*\nPlease try a different search query",
                  color=0xFF0000)
 
+def live_stream(query: str) -> Embed:
+    return Embed(title="Live Stream 🎥",
+                 description=f"Live stream found for: \n*{query}*\nPlease try a different search query",
+                 color=0xFF0000)
 
 def skip_error() -> Embed:
     return Embed(title="Skip Error ⛔",

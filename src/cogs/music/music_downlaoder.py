@@ -1,8 +1,6 @@
 import asyncio
-import os
 import re
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Optional
 import logging
 from traceback import format_exc
@@ -52,7 +50,7 @@ class MusicFactory:
     Class to download music from YouTube using youtube-dl.
     """
 
-    class NoResultsFound(Exception):
+    class NoResultsFoundException(Exception):
         """
         Exception to raise when no results are found for a search query.
 
@@ -61,6 +59,16 @@ class MusicFactory:
 
         def __init__(self, query: str) -> None:
             super().__init__(f"No results found for: {query}\nPlease try a different search query")
+
+    class LiveFoundException(Exception):
+        """
+        Exception to raise when a live stream is found for a search query.
+
+        :param query: The search query
+        """
+
+        def __init__(self, query: str) -> None:
+            super().__init__(f"Live stream found for: {query}\nPlease try a different search query")
 
     def __init__(self):
         self._youtube_regex = re.compile(
@@ -91,11 +99,14 @@ class MusicFactory:
         with yt_dlp.YoutubeDL(self._yt_dlp_opts) as ydl:
             try:
                 info = ydl.extract_info(url, download=False)
-                logging.debug(f"Song info: {info.keys()}")
             except yt_dlp.utils.DownloadError as e:
                 logging.error(f"Error downloading song: {e}")
                 logging.debug(format_exc())
-                raise MusicFactory.NoResultsFound(query)
+                raise MusicFactory.NoResultsFoundException(query)
+
+        if info.get('is_live', False):
+            logging.error(f"Live stream found for: {query}")
+            raise MusicFactory.LiveFoundException(query)
 
         title = info['title']
         thumbnail = info['thumbnails'][0]['url']
@@ -112,7 +123,7 @@ class MusicFactory:
         search = YoutubeSearch(query, max_results=1).to_dict()
         if not search:
             logging.debug(f"_get_url: No results found for: {query}")
-            raise MusicFactory.NoResultsFound(query)
+            raise MusicFactory.NoResultsFoundException(query)
         return f"https://www.youtube.com/watch?v={search[0]['id']}"
 
 
