@@ -14,17 +14,6 @@ from discord import FFmpegPCMAudio
 
 @dataclass
 class Song:
-    """
-    Dataclass to store song information. The stream URL is prepared when the song source is requested.
-
-    :param title:     The title of the song
-    :param url:       The URL of the song
-    :param duration:  The duration of the song
-    :param thumbnail: The thumbnail of the song
-    :param stream_url: The stream URL of the song
-
-    :param _ydl_opts: The youtube-dl options to extract the stream URL
-    """
     title: str
     url: str
     duration: int
@@ -37,35 +26,19 @@ class Song:
     }
 
     async def get_source(self) -> FFmpegPCMAudio:
-        """
-        Get the source of the song. Prepare the stream URL if it is not already prepared.
-
-        :return: The source of the song
-        """
+        # every time get_source is called, the FFmpegPCMAudio object is created
+        # it has to be created every time because it is not reusable
         return FFmpegPCMAudio(self._stream_url, **self._ffmpeg_options)
 
 
 class MusicFactory:
-    """
-    Class to download music from YouTube using youtube-dl.
-    """
 
     class NoResultsFoundException(Exception):
-        """
-        Exception to raise when no results are found for a search query.
-
-        :param query: The search query
-        """
 
         def __init__(self, query: str) -> None:
             super().__init__(f"No results found for: {query}\nPlease try a different search query")
 
     class LiveFoundException(Exception):
-        """
-        Exception to raise when a live stream is found for a search query.
-
-        :param query: The search query
-        """
 
         def __init__(self, query: str) -> None:
             super().__init__(f"Live stream found for: {query}\nPlease try a different search query")
@@ -82,12 +55,6 @@ class MusicFactory:
         self._song_cache: SongsCache = LRUSongsCache()
 
     async def prepare_song(self, query: str) -> Song:
-        """
-        Get a song object with streaming URL from a YouTube URL or search query.
-
-        :param query: The YouTube URL or search query.
-        :return:    The song object.
-        """
         if query in self._song_cache:
             return self._song_cache[query]
         song = await asyncio.to_thread(self._construct_song, query)
@@ -127,6 +94,7 @@ class MusicFactory:
 
 
 class SongsCache(ABC):
+    # May be implemented with a database or a cache
     @abstractmethod
     def __contains__(self, query: str) -> bool:
         pass
