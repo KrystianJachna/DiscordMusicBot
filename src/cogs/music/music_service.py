@@ -3,11 +3,12 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple
 
-from discord import VoiceClient, FFmpegPCMAudio
+from discord import VoiceClient
 from discord.ext import commands
 
 from .messages import *
-from .music_downlaoder import MusicFactory
+from .music_downlaoder import SongFactory
+from .song_cache import LRUSongsCache
 
 
 class MusicManager(ABC):
@@ -178,7 +179,7 @@ class MusicQueue(MusicManager):
     """
 
     def __init__(self) -> None:
-        self.music_downloader = MusicFactory()
+        self.music_downloader = SongFactory(LRUSongsCache())
         self.music_queue: asyncio.Queue[Song] = asyncio.Queue()
         self.downloading_queue: list[Tuple[str, str, bool]] = []  # (query, url, silent)
         self.downloaded_songs: list[str] = []
@@ -231,13 +232,13 @@ class MusicQueue(MusicManager):
                 song = await self.download_task
             except asyncio.CancelledError:
                 continue
-            except MusicFactory.NoResultsFoundException as e:
+            except SongFactory.NoResultsFoundException as e:
                 message = no_results(self.song_currently_downloading)
                 continue
-            except MusicFactory.LiveFoundException as e:
+            except SongFactory.LiveFoundException as e:
                 message = live_stream(self.song_currently_downloading)
                 continue
-            except MusicFactory.AgeRestrictedException as e:
+            except SongFactory.AgeRestrictedException as e:
                 message = age_restricted(self.song_currently_downloading)
                 continue
             except Exception as e:

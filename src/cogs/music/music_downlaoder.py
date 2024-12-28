@@ -1,35 +1,13 @@
 import asyncio
 import re
-from dataclasses import dataclass
-from typing import Optional
 import logging
 from traceback import format_exc
-from cachetools import LRUCache
-from abc import ABC, abstractmethod
 from youtube_search import YoutubeSearch
 
 import yt_dlp
-from discord import FFmpegPCMAudio
 from pathlib import Path
-
-
-@dataclass
-class Song:
-    title: str
-    url: str
-    duration: int
-    thumbnail: Optional[str]
-    _stream_url: Optional[str]
-
-    _ffmpeg_options = {
-        'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-        'options': '-vn'
-    }
-
-    async def get_source(self) -> FFmpegPCMAudio:
-        # every time get_source is called, the FFmpegPCMAudio object is created
-        # it has to be created every time because it is not reusable
-        return FFmpegPCMAudio(self._stream_url, **self._ffmpeg_options)
+from .song_cache import SongsCache, LRUSongsCache
+from .song import Song
 
 
 class YtDlpLogger:
@@ -53,7 +31,7 @@ class YtDlpLogger:
         logging.error(f"{self._LOG_PREFIX}{msg}")
 
 
-class MusicFactory:
+class SongFactory:
     class NoResultsFoundException(Exception):
 
         def __init__(self, query: str) -> None:
@@ -69,9 +47,9 @@ class MusicFactory:
         def __init__(self, query: str) -> None:
             super().__init__(f"Age restricted song found for: {query}\nPlease try a different search query")
 
-    def __init__(self, cookies_path: Path = Path('cookies.txt')):
+    def __init__(self, song_cache: SongsCache = LRUSongsCache, cookies_path: Path = Path('cookies.txt')):
         self._youtube_regex = re.compile(
-            r"http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?‌​[\w\?‌​=]*)?"
+            r"https?://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)([\w\-_]*)(&(amp;)?‌​[\w?‌​=]*)?"
         )
         self._yt_dlp_opts = {
             'format': 'bestaudio/best',
@@ -80,7 +58,7 @@ class MusicFactory:
             'logger': YtDlpLogger(),
         }
         self._load_cookies(cookies_path)  # cookies are required to be able to download age-restricted songs
-        self._song_cache: SongsCache = LRUSongsCache()
+        self._song_cache: SongsCache = song_cache
 
     def _load_cookies(self, cookies_path: Path) -> None:
         if cookies_path.exists():
@@ -107,12 +85,12 @@ class MusicFactory:
             except yt_dlp.utils.DownloadError as e:
                 error_msg = str(e)
                 if "Sign in to confirm your age" in error_msg:
-                    raise MusicFactory.AgeRestrictedException(query)
+                    raise SongFactory.AgeRestrictedException(query)
                 logging.debug(format_exc())
-                raise MusicFactory.NoResultsFoundException(query)
+                raise SongFactory.NoResultsFoundException(query)
 
         if info.get('is_live', False):
-            raise MusicFactory.LiveFoundException(query)
+            raise SongFactory.LiveFoundException(query)
 
         return Song(title=info['title'],
                     url=url,
@@ -127,42 +105,5 @@ class MusicFactory:
         search = YoutubeSearch(query, max_results=1).to_dict()
         if not search:
             logging.debug(f"_get_url: No results found for: {query}")
-            raise MusicFactory.NoResultsFoundException(query)
+            raise SongFactory.NoResultsFoundException(query)
         return f"https://www.youtube.com/watch?v={search[0]['id']}"
-
-
-class SongsCache(ABC):
-    # May be implemented with a database or a cache
-    @abstractmethod
-    def __contains__(self, query: str) -> bool:
-        pass
-
-    @abstractmethod
-    def __getitem__(self, query: str) -> Song:
-        pass
-
-    @abstractmethod
-    def __setitem__(self, query: str, song: Song) -> None:
-        pass
-
-
-class LRUSongsCache(SongsCache):
-    def __init__(self, song_size: int = 100, query_size: int = 300):
-        self._url_cache: LRUCache[str, Song] = LRUCache(maxsize=song_size)  # url -> song
-        self._query_cache: LRUCache[str, str] = LRUCache(maxsize=query_size)  # query -> url
-        self._youtube_regex = re.compile(
-            r"http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?‌​[\w\?‌​=]*)?"
-        )
-
-    def __contains__(self, key: str) -> bool:
-        return key in self._url_cache or key in self._query_cache
-
-    def __getitem__(self, key: str) -> Song:
-        if key in self._url_cache:
-            return self._url_cache[key]
-        return self._url_cache[self._query_cache[key]]
-
-    def __setitem__(self, query: str, song: Song) -> None:
-        self._url_cache[song.url] = song
-        if self._youtube_regex.match(query):
-            self._query_cache[query] = song.url
