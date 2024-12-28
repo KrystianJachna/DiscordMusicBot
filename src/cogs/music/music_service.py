@@ -12,11 +12,6 @@ from .song_cache import LRUSongsCache
 
 
 class MusicManager(ABC):
-    """
-    Abstract class to manage the music queue
-
-    :param EndOfPlaylistException: Exception to raise when the end of the playlist is reached
-    """
 
     class EndOfPlaylistException(Exception):
         def __init__(self):
@@ -24,31 +19,14 @@ class MusicManager(ABC):
 
     @abstractmethod
     async def next(self) -> Song:
-        """
-        Get the next song from the queue
-
-        :return: The next song
-        """
         pass
 
     @abstractmethod
     async def clear_queue(self) -> None:
-        """
-        Clear the queue
-
-        :return: None
-        :return:
-        """
         pass
 
 
 class MusicPlayer:
-    """
-    Class to play the songs in the queue
-
-    :param music_manager: The music manager
-    :param voice_client: The voice client (think of it as the voice channel)
-    """
 
     class NotPlayingException(Exception):
         def __init__(self):
@@ -68,40 +46,19 @@ class MusicPlayer:
         return self._now_playing
 
     async def pause(self) -> None:
-        """
-        Pause the current song
-
-        :return: None
-        """
         if not self._is_playing:
             raise MusicPlayer.NotPlayingException
         self.voice_client.pause()
 
     async def resume(self):
-        """"
-        Resume the current song
-
-        :return: None
-        """
         if not self._is_playing:
             raise MusicPlayer.NotPlayingException
         self.voice_client.resume()
 
     async def skip(self) -> None:
-        """
-        Skip the current song
-
-        :return: None
-        """
         self.voice_client.stop()
 
     async def play_loop(self) -> None:
-        """
-        Play the songs in the queue
-
-        Try to play the next song in the queue until the end of the playlist is reached
-        :return: None
-        """
         self._is_playing = True
         while self.keep_playing:
             try:
@@ -121,29 +78,14 @@ class MusicPlayer:
         self._is_playing = False
 
     def get_now_playing(self) -> Optional[str]:
-        """
-        Get the song name that is currently playing
-
-        :return: The song name that is currently playing or an empty string if no song is playing
-        """
         return f"[{self._now_playing.title}]({self._now_playing.url})" if self._now_playing else ""
 
     async def _notify_singing(self) -> None:
-        """
-        Notify the player that the song has finished playing
-
-        :return: None
-        """
         self._now_playing = None
         async with self._singing:
             self._singing.notify_all()
 
     async def stop(self) -> None:
-        """
-        Stop the player
-
-        :return: None
-        """
         self.keep_playing = False
         self.voice_client.stop()
         await self.music_manager.clear_queue()
@@ -151,32 +93,14 @@ class MusicPlayer:
 
     @property
     def is_playing(self) -> bool:
-        """
-        Check if the player is currently playing a song
-
-        :return: True if the player is playing a song, False otherwise
-        """
         return self._is_playing
 
     @property
     def voice_client(self) -> VoiceClient:
-        """
-        Get the voice client
-
-        :return: The voice client
-        """
         return self._voice_client
 
 
 class MusicQueue(MusicManager):
-    """
-    Class to manage the music queue, and download the songs
-
-    :param downloading_queue: The queue of songs to download
-    :param currently_downloading: If any song is currently downloading
-    :param music_queue: The queue of songs to play
-    :param music_downloader: The music downloader
-    """
 
     def __init__(self) -> None:
         self.music_downloader = SongFactory(LRUSongsCache())
@@ -198,29 +122,11 @@ class MusicQueue(MusicManager):
 
     async def add(self, query: str, ctx: Optional[commands.Context], *, silent: bool = False,
                   url: Optional[str] = None) -> None:
-        """
-        Add a song to the queue
-
-        :param query: The search query
-        :param ctx: The discord context
-        :param silent: If the bot should send a message to the channel
-        :param url: The url of the song
-        :return: None
-        """
         self.downloading_queue.append((query, url, silent))
         if not self.currently_downloading:
             await self._download(ctx)
 
     async def _download(self, ctx: Optional[commands.Context]) -> None:
-        """
-        Process the downloading queue
-
-        This method will download the songs in the queue if there are any
-        url/query waiting to be downloaded
-
-        :param ctx: The discord context
-        :return: None
-        """
         while self.downloading_queue:
             message: Optional[Embed] = None
             self.currently_downloading = True
@@ -256,11 +162,6 @@ class MusicQueue(MusicManager):
         self.currently_downloading = False
 
     async def next(self) -> Song:
-        """
-        Get the next song from the queue
-
-        :return: The next song
-        """
         if self.music_queue.empty() and not self.currently_downloading:
             raise MusicManager.EndOfPlaylistException
         song = await self.music_queue.get()
@@ -271,19 +172,9 @@ class MusicQueue(MusicManager):
 
     @property
     def queue_length(self) -> int:
-        """
-        Get the length of the queue
-
-        :return: The length of the queue
-        """
         return self.music_queue.qsize()
 
     async def clear_queue(self) -> None:
-        """
-        Clear the queue
-
-        :return: None
-        """
         self.downloading_queue.clear()
 
         if self.currently_downloading:
@@ -293,13 +184,6 @@ class MusicQueue(MusicManager):
         self.downloaded_songs.clear()
 
     def get_queue_info(self) -> str:
-        """
-        Show the songs in the queue
-
-        Each song is separated by a new line and a dash
-
-        :return: A tuple containing the downloaded songs, the song currently downloading, and the songs to download
-        """
         downloaded = "- " + "\n- ".join(
             '`' + title + '`' for title in self.downloaded_songs) + "\n" if self.downloaded_songs else ""
         now_downloading = "- `" + self.song_currently_downloading + '`\n' if self.currently_downloading else ""
