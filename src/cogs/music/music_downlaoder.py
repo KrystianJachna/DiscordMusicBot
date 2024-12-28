@@ -114,12 +114,11 @@ class MusicFactory:
         if info.get('is_live', False):
             raise MusicFactory.LiveFoundException(query)
 
-        title = info['title']
-        thumbnail = info['thumbnails'][0]['url']
-        duration = info['duration']
-        stream_url = info['url']
-
-        return Song(title, url, duration, thumbnail, stream_url)
+        return Song(title=info['title'],
+                    url=url,
+                    duration=info['duration'],
+                    thumbnail=info['thumbnails'][0]['url'],
+                    _stream_url=info['url'])
 
     def _get_url(self, query: str) -> str:
         if self._youtube_regex.match(query):
