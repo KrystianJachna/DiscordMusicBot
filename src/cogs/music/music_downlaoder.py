@@ -32,12 +32,12 @@ class YtDlpLogger:
         logging.error(f"{self._LOG_PREFIX}{msg}")
 
 
-class SongFactory:
+class SongDownloader:
     """
     Singleton class that constructs a Song object from a search query.
     Because of reading cookies, and the need to cache songs, it is a singleton.
     """
-    _instance: Optional['SongFactory'] = None
+    _instance: Optional['SongDownloader'] = None
 
     class NoResultsFoundException(Exception):
 
@@ -56,7 +56,7 @@ class SongFactory:
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
-            cls._instance = super(SongFactory, cls).__new__(cls)
+            cls._instance = super(SongDownloader, cls).__new__(cls)
         return cls._instance
 
     def __init__(self, song_cache: SongsCache = LRUSongsCache, cookies_path: Path = Path('cookies.txt')):
@@ -97,12 +97,12 @@ class SongFactory:
             except yt_dlp.utils.DownloadError as e:
                 error_msg = str(e)
                 if "Sign in to confirm your age" in error_msg:
-                    raise SongFactory.AgeRestrictedException(query)
+                    raise SongDownloader.AgeRestrictedException(query)
                 logging.debug(format_exc())
-                raise SongFactory.NoResultsFoundException(query)
+                raise SongDownloader.NoResultsFoundException(query)
 
         if info.get('is_live', False):
-            raise SongFactory.LiveFoundException(query)
+            raise SongDownloader.LiveFoundException(query)
 
         return Song(title=info['title'],
                     url=url,
@@ -117,5 +117,5 @@ class SongFactory:
         search = YoutubeSearch(query, max_results=1).to_dict()
         if not search:
             logging.debug(f"_get_url: No results found for: {query}")
-            raise SongFactory.NoResultsFoundException(query)
+            raise SongDownloader.NoResultsFoundException(query)
         return f"https://www.youtube.com/watch?v={search[0]['id']}"
