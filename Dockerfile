@@ -14,7 +14,7 @@ COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # cookies.txt may or may not exist
-# since COPY requires at least one file to exist, we use a wildcard
+# since COPY requires at least one file to exist, wildcard is used
 # to ensure that the COPY command will not fail
 COPY Dockerfile cookies.txt* /app/
 
