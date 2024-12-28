@@ -105,6 +105,7 @@ class MusicPlayer:
         while self.keep_playing:
             try:
                 self._now_playing = await self.music_manager.next()
+                # TODO: add timeout to the play method
             except MusicManager.EndOfPlaylistException:
                 break
             async with self._singing:

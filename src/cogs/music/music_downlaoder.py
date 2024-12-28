@@ -34,7 +34,8 @@ class Song:
 
 class YtDlpLogger:
     """
-    Custom logger for yt-dlp
+    Custom logger for yt-dlp, because the default logger is too verbose.
+    Since yd-dlp uses debug, info, warning, and error, it can be overridden.
     """
 
     _LOG_PREFIX = "yt-dlp: "
