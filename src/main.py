@@ -1,4 +1,3 @@
-
 import asyncio
 import logging
 from traceback import format_exc
@@ -18,6 +17,7 @@ bot: commands.Bot = commands.Bot(
     intents=intents,
     help_command=HelpMessage()
 )
+
 
 @bot.event
 async def on_ready() -> None:
@@ -40,14 +40,15 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
         await ctx.send(embed=command_not_found())
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send(embed=missing_argument(error.param.name, ctx.command.name))
-    else: # error occurred in the command code
+    else:  # error occurred in the command code
         logging.error(error)
         logging.debug(format_exc())
+
 
 async def main() -> None:
     try:
         token = load_token()
-        setup_logging(logging.DEBUG, enable_file_logging=True) # TODO: Change to INFO for production
+        setup_logging(logging.DEBUG, enable_file_logging=True)  # TODO: Change to INFO for production
         async with bot:
             await bot.add_cog(MusicCog(bot))
             await bot.start(token)

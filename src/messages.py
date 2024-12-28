@@ -12,28 +12,13 @@ def missing_argument(arg: str, command: str) -> Embed:
                  description=f"Usage: `!{command} {arg}`\nType `!help {command}` for more information",
                  color=0xFF0000)
 
-def command_error() -> Embed:
-    return Embed(title="Command Error ⛔",
-                 description="An error occurred while executing the command"
-                             "\nCheck the logs for more information",
-                 color=0xFF0000)
-
 
 class HelpMessage(commands.HelpCommand):
-    """
-    Custom help command for the bot
-    """
 
     def __init__(self):
         super().__init__()
 
     async def send_bot_help(self, mapping: dict) -> None:
-        """
-        Send the help message for the bot
-
-        :param mapping: The mapping of commands
-        :return: None
-        """
         desc = """
         This bot is a relatively simple music bot with some extra features for gaming.
         
@@ -54,12 +39,6 @@ class HelpMessage(commands.HelpCommand):
         await channel.send(embed=embed)
 
     async def send_command_help(self, command: commands.Command) -> None:
-        """
-        Send the help message for a specific command
-
-        :param command: The command to send the help message for
-        :return: None
-        """
         embed = Embed(title="!" + command.name, description=command.description or "No description",
                       color=Color.blue())
         if command.aliases:
@@ -68,12 +47,6 @@ class HelpMessage(commands.HelpCommand):
         await channel.send(embed=embed)
 
     async def send_cog_help(self, cog: commands.Cog) -> None:
-        """
-        Send the help message for a specific cog
-
-        :param cog: The cog to send the help message for
-        :return: None
-        """
         embed = Embed(title=cog.qualified_name,
                       color=Color.blue())
         for command in cog.get_commands():

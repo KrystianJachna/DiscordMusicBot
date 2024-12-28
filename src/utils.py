@@ -1,4 +1,3 @@
-
 import logging
 from os import getenv
 from sys import stdout
