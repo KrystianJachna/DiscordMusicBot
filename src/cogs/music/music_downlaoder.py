@@ -32,6 +32,26 @@ class Song:
         return FFmpegPCMAudio(self._stream_url, **self._ffmpeg_options)
 
 
+class YtDlpLogger:
+    """
+    Custom logger for yt-dlp
+    """
+
+    _LOG_PREFIX = "yt-dlp: "
+
+    def debug(self, msg):
+        logging.debug(f"{self._LOG_PREFIX}{msg}")
+
+    def info(self, msg):
+        logging.info(f"{self._LOG_PREFIX}{msg}")
+
+    def warning(self, msg):
+        logging.warning(f"{self._LOG_PREFIX}{msg}")
+
+    def error(self, msg):
+        logging.error(f"{self._LOG_PREFIX}{msg}")
+
+
 class MusicFactory:
     class NoResultsFoundException(Exception):
 
@@ -54,14 +74,16 @@ class MusicFactory:
         )
         self._yt_dlp_opts = {
             'format': 'bestaudio/best',
-            'quiet': True,
+            'quiet': False,
             'match_filter': '!is_live',
+            'logger': YtDlpLogger(),
         }
         self._load_cookies(cookies_path)  # cookies are required to be able to download age-restricted songs
         self._song_cache: SongsCache = LRUSongsCache()
 
     def _load_cookies(self, cookies_path: Path) -> None:
         if cookies_path.exists():
+            logging.info(f"Cookies file loaded from {str(cookies_path)}")
             self._yt_dlp_opts['cookiefile'] = str(cookies_path)
         else:
             logging.info("Cookies file not found. "
@@ -70,6 +92,7 @@ class MusicFactory:
 
     async def prepare_song(self, query: str) -> Song:
         if query in self._song_cache:
+            logging.debug(f"prepare_song: song found in cache for: {query}")
             return self._song_cache[query]
         song = await asyncio.to_thread(self._construct_song, query)
         self._song_cache[query] = song
@@ -88,7 +111,6 @@ class MusicFactory:
                 raise MusicFactory.NoResultsFoundException(query)
 
         if info.get('is_live', False):
-            logging.debug(f"Live stream found for: {query}")
             raise MusicFactory.LiveFoundException(query)
 
         title = info['title']
@@ -100,6 +122,7 @@ class MusicFactory:
 
     def _get_url(self, query: str) -> str:
         if self._youtube_regex.match(query):
+            logging.debug(f"_get_url: direct url found for: {query}")
             return query
         search = YoutubeSearch(query, max_results=1).to_dict()
         if not search:
