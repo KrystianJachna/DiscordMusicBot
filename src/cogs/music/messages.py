@@ -109,3 +109,11 @@ def looping(loop: bool) -> Embed:
     return Embed(title=f"Looping ⟳",
                  description=description,
                  color=0x00FF00)
+
+
+def age_restricted(query: str) -> Embed:
+    return Embed(title="Age Restricted Content 🔞",
+                 description=f"The song: {query} is age restricted. "
+                             "Please provide a `cookies.txt` file in the root directory to download the song\n\n"
+                             "See `README.md` for details",
+                 color=0xFF0000)

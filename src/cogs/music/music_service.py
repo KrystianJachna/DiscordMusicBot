@@ -236,6 +236,9 @@ class MusicQueue(MusicManager):
             except MusicFactory.LiveFoundException as e:
                 message = live_stream(self.song_currently_downloading)
                 continue
+            except MusicFactory.AgeRestrictedException as e:
+                message = age_restricted(self.song_currently_downloading)
+                continue
             except Exception as e:
                 message = download_error(self.song_currently_downloading)
                 logging.error(e)

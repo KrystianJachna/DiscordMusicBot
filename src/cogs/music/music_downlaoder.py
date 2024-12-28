@@ -43,6 +43,11 @@ class MusicFactory:
         def __init__(self, query: str) -> None:
             super().__init__(f"Live stream found for: {query}\nPlease try a different search query")
 
+    class AgeRestrictedException(Exception):
+
+        def __init__(self, query: str) -> None:
+            super().__init__(f"Age restricted song found for: {query}\nPlease try a different search query")
+
     def __init__(self, cookies_path: Path = Path('cookies.txt')):
         self._youtube_regex = re.compile(
             r"http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?‌​[\w\?‌​=]*)?"
@@ -58,7 +63,6 @@ class MusicFactory:
     def _load_cookies(self, cookies_path: Path) -> None:
         if cookies_path.exists():
             self._yt_dlp_opts['cookiefile'] = str(cookies_path)
-            logging.debug(f"Using cookies file: {cookies_path}")
         else:
             logging.info("Cookies file not found. "
                          "Create a cookies.txt file in the root directory for age-restricted songs. "
@@ -77,9 +81,11 @@ class MusicFactory:
             try:
                 info = ydl.extract_info(url, download=False)
             except yt_dlp.utils.DownloadError as e:
+                error_msg = str(e)
+                if "Sign in to confirm your age" in error_msg:
+                    raise MusicFactory.AgeRestrictedException(query)
                 logging.debug(format_exc())
                 raise MusicFactory.NoResultsFoundException(query)
-            # TODO: check age restriction error
 
         if info.get('is_live', False):
             logging.debug(f"Live stream found for: {query}")
@@ -89,8 +95,6 @@ class MusicFactory:
         thumbnail = info['thumbnails'][0]['url']
         duration = info['duration']
         stream_url = info['url']
-
-        logging.debug(f"Song: {title} - {url} - {duration} - {thumbnail} - {stream_url}")
 
         return Song(title, url, duration, thumbnail, stream_url)
 
