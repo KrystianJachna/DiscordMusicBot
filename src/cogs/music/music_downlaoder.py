@@ -8,6 +8,7 @@ import yt_dlp
 from pathlib import Path
 from .song_cache import SongsCache, LRUSongsCache
 from .song import Song
+from typing import Optional
 
 
 class YtDlpLogger:
@@ -32,6 +33,12 @@ class YtDlpLogger:
 
 
 class SongFactory:
+    """
+    Singleton class that constructs a Song object from a search query.
+    Because of reading cookies, and the need to cache songs, it is a singleton.
+    """
+    _instance: Optional['SongFactory'] = None
+
     class NoResultsFoundException(Exception):
 
         def __init__(self, query: str) -> None:
@@ -47,6 +54,11 @@ class SongFactory:
         def __init__(self, query: str) -> None:
             super().__init__(f"Age restricted song found for: {query}\nPlease try a different search query")
 
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(SongFactory, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self, song_cache: SongsCache = LRUSongsCache, cookies_path: Path = Path('cookies.txt')):
         self._youtube_regex = re.compile(
             r"https?://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)([\w\-_]*)(&(amp;)?‌​[\w?‌​=]*)?"
@@ -60,6 +72,14 @@ class SongFactory:
         self._load_cookies(cookies_path)  # cookies are required to be able to download age-restricted songs
         self._song_cache: SongsCache = song_cache
 
+    async def prepare_song(self, query: str) -> Song:
+        if query in self._song_cache:
+            logging.debug(f"prepare_song: song found in cache for: {query}")
+            return self._song_cache[query]
+        song = await asyncio.to_thread(self._construct_song, query)
+        self._song_cache[query] = song
+        return song
+
     def _load_cookies(self, cookies_path: Path) -> None:
         if cookies_path.exists():
             logging.info(f"Cookies file loaded from {str(cookies_path)}")
@@ -68,14 +88,6 @@ class SongFactory:
             logging.info("Cookies file not found. "
                          "Create a cookies.txt file in the root directory for age-restricted songs. "
                          "See README.md for details.")
-
-    async def prepare_song(self, query: str) -> Song:
-        if query in self._song_cache:
-            logging.debug(f"prepare_song: song found in cache for: {query}")
-            return self._song_cache[query]
-        song = await asyncio.to_thread(self._construct_song, query)
-        self._song_cache[query] = song
-        return song
 
     def _construct_song(self, query: str) -> Song:
         url = self._get_url(query)
