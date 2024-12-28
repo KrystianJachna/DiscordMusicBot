@@ -13,8 +13,11 @@ COPY requirements.txt /app/requirements.txt
 
 RUN pip install --no-cache-dir -r requirements.txt
 
+# cookies.txt may or may not exist
+# since COPY requires at least one file to exist, we use a wildcard
+# to ensure that the COPY command will not fail
+COPY Dockerfile cookies.txt* /app/
+
 COPY ./src /app/src
 
-WORKDIR /app/src
-
-CMD ["python", "main.py"]
+CMD ["python", "./src/main.py"]

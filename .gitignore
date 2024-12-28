@@ -168,3 +168,4 @@ out.*
 # ignore downloaded songs
 !gitkeep
 downloads/*
+/cookies.txt

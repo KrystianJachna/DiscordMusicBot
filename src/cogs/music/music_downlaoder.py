@@ -10,6 +10,7 @@ from youtube_search import YoutubeSearch
 
 import yt_dlp
 from discord import FFmpegPCMAudio
+from pathlib import Path
 
 
 @dataclass
@@ -32,7 +33,6 @@ class Song:
 
 
 class MusicFactory:
-
     class NoResultsFoundException(Exception):
 
         def __init__(self, query: str) -> None:
@@ -43,7 +43,7 @@ class MusicFactory:
         def __init__(self, query: str) -> None:
             super().__init__(f"Live stream found for: {query}\nPlease try a different search query")
 
-    def __init__(self):
+    def __init__(self, cookies_path: Path = Path('cookies.txt')):
         self._youtube_regex = re.compile(
             r"http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?‌​[\w\?‌​=]*)?"
         )
@@ -52,7 +52,17 @@ class MusicFactory:
             'quiet': True,
             'match_filter': '!is_live',
         }
+        self._load_cookies(cookies_path)  # cookies are required to be able to download age-restricted songs
         self._song_cache: SongsCache = LRUSongsCache()
+
+    def _load_cookies(self, cookies_path: Path) -> None:
+        if cookies_path.exists():
+            self._yt_dlp_opts['cookiefile'] = str(cookies_path)
+            logging.debug(f"Using cookies file: {cookies_path}")
+        else:
+            logging.info("Cookies file not found. "
+                         "Create a cookies.txt file in the root directory for age-restricted songs. "
+                         "See README.md for details.")
 
     async def prepare_song(self, query: str) -> Song:
         if query in self._song_cache:
@@ -69,6 +79,7 @@ class MusicFactory:
             except yt_dlp.utils.DownloadError as e:
                 logging.debug(format_exc())
                 raise MusicFactory.NoResultsFoundException(query)
+            # TODO: check age restriction error
 
         if info.get('is_live', False):
             logging.debug(f"Live stream found for: {query}")

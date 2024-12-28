@@ -31,3 +31,7 @@ DISCORD_TOKEN='<your-discord-bot-token>'
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+TODO: Add more information, info about cookies, etc.
+
+```
