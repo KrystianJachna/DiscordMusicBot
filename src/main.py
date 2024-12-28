@@ -3,11 +3,10 @@ import logging
 from traceback import format_exc
 
 import discord
-from discord import Embed
+
 from cogs.music_cog import MusicCog
 from utils import load_token, setup_logging
-from discord.ext import commands
-from help_message import HelpMessage
+from messages import *
 
 intents = discord.Intents.default()
 intents.message_content = True  # Required for commands to be able to read arguments
@@ -32,15 +31,15 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
     """
     Discord event that is triggered when a command error occurs either
     through user input or through an error in the command itself.
+
+    :param ctx: Discord context
+    :param error: The error that occurred
+    :return:    None
     """
     if isinstance(error, commands.CommandNotFound):
-        await ctx.send(embed=Embed(title="🤷‍ Command Not Found️",
-                                   description="Type `!help` to see the list of available commands",
-                                   color=0xFF6900))
+        await ctx.send(embed=command_not_found())
     elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send(embed=Embed(title=f"🤔 Oops! You’re missing something!",
-                                   description=f"Type `!help {ctx.command.name}` for more information",
-                                   color=0xFF0000))
+        await ctx.send(embed=missing_argument(error.param.name, ctx.command.name))
     else:  # error occurred in the command code
         logging.error(error)
         logging.debug(format_exc())
