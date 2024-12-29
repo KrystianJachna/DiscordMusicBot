@@ -32,6 +32,10 @@ class SongQueue(ABC):
     async def get_queue_info(self) -> list[str]:
         pass
 
+    @abstractmethod
+    async def queue_length(self) -> int:
+        pass
+
 
 class BgDownloadSongQueue(SongQueue):
     class TrackedAsyncQueue(asyncio.Queue):
