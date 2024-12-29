@@ -81,6 +81,7 @@ class BgDownloadSongQueue(SongQueue):
 
     async def get_queue_info(self) -> list[str]:
         downloaded_songs = self._downloaded_songs.elements
+        downloaded_songs = [song.title for song in downloaded_songs]
         now_processing = [self._now_processing] if self._now_processing else []
         waiting_queries = [query for query, _ in self._waiting_queries]
         return downloaded_songs + now_processing + waiting_queries

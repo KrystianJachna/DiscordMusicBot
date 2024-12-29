@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands, tasks
 
 from .music.messages import *
-
+import logging
 from .music.music_service import MusicPlayer
 from .music.song_queue import BgDownloadSongQueue
 from .music.song_cache import LRUSongsCache
@@ -25,7 +25,7 @@ class MusicCog(commands.Cog):
         music_player = self._servers_music_players[ctx.guild.id]
         try:
             await music_player.skip()
-            await ctx.send(embed=skipped(await music_player.queue_length()))
+            await ctx.send(embed=skipped(await music_player.queue_length(), music_player.loop))
         except MusicPlayer.NotPlayingException:
             await ctx.send(embed=skip_error())
 
@@ -61,8 +61,11 @@ class MusicCog(commands.Cog):
     @commands.command(description=QUEUE_DESCRIPTION)
     async def queue(self, ctx: commands.Context) -> None:
         music_player = self._servers_music_players[ctx.guild.id]
-        queue_info = await music_player.get_queue_info()
-        await ctx.send(embed=queue(queue_info, music_player.loop))
+        now_playing, waiting = await music_player.get_queue_info()
+        logging.debug(f"Queue: {waiting}")
+        logging.debug(f"Looped songs: {music_player.loop}")
+        logging.debug(f"Now playing: {now_playing}")
+        await ctx.send(embed=queue(now_playing, waiting, music_player.loop))
 
     @commands.command(description=CLEAR_DESCRIPTION)
     async def clear(self, ctx: commands.Context) -> None:

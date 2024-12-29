@@ -76,10 +76,14 @@ def skip_error() -> Embed:
                  color=ERROR_COLOR)
 
 
-def skipped(queue_length: int) -> Embed:
-    return Embed(title="⏭️ Song skipped",
-                 description=f"**Queue Length**: {queue_length}",
-                 color=SUCCESS_COLOR)
+def skipped(queue_length: int, looping_enabled: bool) -> Embed:
+    message = Embed(title="⏭️ Song skipped",
+                    description=f"**Queue Length**: {queue_length}",
+                    color=SUCCESS_COLOR)
+    if looping_enabled:
+        message.set_footer(text="🔄 Looping is enabled")
+    return message
+
 
 def not_in_voice_channel() -> Embed:
     return Embed(
@@ -110,16 +114,20 @@ def stopped() -> Embed:
                  color=SUCCESS_COLOR)
 
 
-def queue(title_lst: list[str], loop: bool) -> Embed:  # TODO: improve
-    message = Embed(title="Music Queue 🎵",
-                    color=0x00FF00)
-    if title_lst:
-        message.add_field(name="Now Playing", value=title_lst[0])
-        message.add_field(name="Up Next", value="\n".join(title_lst[1:]))
+def queue(now_playing: Song, coming_next: list[str], looping_enabled: bool) -> Embed:
+    if now_playing or coming_next:
+        now_playing = f"**Now Playing**: [{now_playing.title}]({now_playing.url})" if now_playing else "waiting..."
+        message = Embed(title="🎵 Music Queue",
+                        description=now_playing,
+                        color=SUCCESS_COLOR)
+        waiting_in_queue = "- " + "\n- ".join(coming_next) if coming_next else "No songs in queue"
+        message.add_field(name="Coming Next:", value=waiting_in_queue)
     else:
-        message.add_field(name="Queue Empty", value="No songs in the queue")
-    if loop:
-        message.set_footer(text="Looping enabled")
+        message = Embed(title="🎵Music Queue",
+                        description="No songs in queue",
+                        color=SUCCESS_COLOR)
+    if looping_enabled:
+        message.set_footer(text="🔄 Looping is enabled")
     return message
 
 
@@ -141,8 +149,8 @@ def resumed(song_title: str, url: str) -> Embed:
                  color=SUCCESS_COLOR)
 
 
-def looping(loop: bool) -> Embed:
-    description = f"**Status**: {'enabled' if loop else 'disabled'}"
+def looping(looping_enabled: bool) -> Embed:
+    description = f"**Status**: {'enabled' if looping_enabled else 'disabled'}"
     return Embed(title=f"🔄 Looping",
                  description=description,
                  color=SUCCESS_COLOR)

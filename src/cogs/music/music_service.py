@@ -68,14 +68,13 @@ class MusicPlayer:
         self._looped_songs.clear()
         self._clearing_queue = True
 
-    async def get_queue_info(self) -> list[str]:
+    async def get_queue_info(self) -> tuple[Optional[Song], list[str]]:  # (now_playing_song, [queries])
         waiting_in_queue = await self._song_queue.get_queue_info()
-        now_playing = [self._now_playing.title] if self._now_playing else []
         looped_songs = [song.title for song in self._looped_songs] if self._loop else []
-        return now_playing + waiting_in_queue + looped_songs
+        return self._now_playing, waiting_in_queue + looped_songs
 
     async def queue_length(self) -> int:
-        return len(await self.get_queue_info())
+        return await self._song_queue.queue_length() + (len(self._looped_songs) if self._loop else 0)
 
     async def play(self, query: str, ctx: Context) -> None:
         await self._song_queue.add(query, ctx)
