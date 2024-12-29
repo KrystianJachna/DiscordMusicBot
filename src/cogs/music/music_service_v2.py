@@ -8,10 +8,10 @@ from traceback import format_exc
 
 from .messages import *
 from .music_downlaoder import SongDownloader
-from .music_service import MusicQueue
 from .song_cache import LRUSongsCache
 from discord.ext.commands import Context
 from .messages import *
+from .song_cache import LRUSongsCache
 
 
 class SongQueue(ABC):
@@ -45,7 +45,7 @@ class MusicPlayer:
         def __init__(self):
             super().__init__("Player is not playing")
 
-    def __init__(self, song_queue: SongQueue, voice_client: VoiceClient):
+    def __init__(self, voice_client: VoiceClient, song_queue: SongQueue):
         self._now_playing: Optional[Song] = None
         self._voice_client = voice_client
         self._song_queue = song_queue
@@ -77,6 +77,14 @@ class MusicPlayer:
     def loop(self, value: bool) -> None:
         self._loop = value
 
+    @property
+    def now_playing(self) -> Optional[Song]:
+        return self._now_playing
+
+    @property
+    def voice_client(self) -> VoiceClient:
+        return self._voice_client
+
     async def stop(self) -> None:
         await self._song_queue.clear_queue()
         if self._processing_task:
@@ -104,23 +112,24 @@ class MusicPlayer:
             while True:
                 try:
                     self._now_playing = await self._song_queue.next()
-                except MusicQueue.EndOfPlaylistException:
-                    if self._loop and self._looped_songs:
+                except SongQueue.EndOfPlaylistException:
+                    if self.loop and self._looped_songs:
                         self._now_playing = self._looped_songs.pop(0)
-                    else:
-                        break  # TODO: disconnect after a timeout
+                    else:  # TODO: disconnect after timeout
+                        break
                 source = await self._now_playing.get_source()
                 finished = asyncio.Event()
                 self._voice_client.play(source, after=lambda e: self._after_playing(e, finished))
                 await finished.wait()
-                if self._loop:
-                    self._looped_songs.append(self._now_playing)
+                self._now_playing = None
         except asyncio.CancelledError:
             logging.debug("Processing queue cancelled")
         finally:
             self._processing_queue = False
 
     def _after_playing(self, error: Optional[Exception], finished: asyncio.Event) -> None:
+        if self.loop:
+            self._looped_songs.append(self._now_playing)
         self._now_playing = None
         if error:
             logging.error(f"Error playing song: {error}")
@@ -148,12 +157,11 @@ class BgDownloadSongQueue(SongQueue):
             return self._elements
 
     def __init__(self):
-        self._music_downloader = SongDownloader()
+        self._music_downloader = SongDownloader(LRUSongsCache())
         self._downloaded_songs: BgDownloadSongQueue.TrackedAsyncQueue = BgDownloadSongQueue.TrackedAsyncQueue()
         self._waiting_queries: list[tuple[str, Context]] = []
         self._now_processing: Optional[str] = None
         self._processing_task: Optional[asyncio.Task] = None
-
 
     async def next(self) -> Song:
         if self._downloaded_songs.empty() and not self._processing_task:
@@ -187,6 +195,7 @@ class BgDownloadSongQueue(SongQueue):
                 self._now_processing = query
                 try:
                     song = await self._music_downloader.prepare_song(query)
+                    await ctx.send(embed=added_to_queue(song, await self.queue_length()))
                     self._downloaded_songs.put_nowait(song)
                 except SongDownloader.AgeRestrictedException:
                     await ctx.send(embed=age_restricted(query))
@@ -195,9 +204,9 @@ class BgDownloadSongQueue(SongQueue):
                 except SongDownloader.LiveFoundException:
                     await ctx.send(embed=live_stream(query))
                 except Exception as e:
+                    if isinstance(e, asyncio.CancelledError): raise e
                     logging.error(e)
                     logging.debug(format_exc())
-                    await ctx.send(embed=download_error(query))
         except asyncio.CancelledError:
             pass
         finally:
