@@ -7,11 +7,9 @@ from discord import VoiceClient
 from traceback import format_exc
 
 from .music_downlaoder import SongDownloader
-from .song_cache import LRUSongsCache
 from discord.ext.commands import Context
-from .utils import *
+from .messages import *
 from .song_cache import LRUSongsCache
-
 
 class SongQueue(ABC):
     class EndOfPlaylistException(Exception):
@@ -208,6 +206,7 @@ class BgDownloadSongQueue(SongQueue):
                     await ctx.send(embed=live_stream(query))
                 except Exception as e:
                     if isinstance(e, asyncio.CancelledError): raise e
+                    await ctx.send(embed=download_error(query))
                     logging.error(e)
                     logging.debug(format_exc())
         except asyncio.CancelledError:
