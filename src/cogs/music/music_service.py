@@ -99,7 +99,7 @@ class MusicPlayer:
         return now_playing + waiting_in_queue + looped_songs
 
     async def queue_length(self) -> int:
-        return len(await self._song_queue.get_queue_info())
+        return len(await self.get_queue_info())
 
     async def play(self, query: str, ctx: Context) -> None:
         await self._song_queue.add(query, ctx)
