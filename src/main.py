@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from traceback import format_exc
 
 import discord
@@ -8,6 +7,8 @@ from cogs.music_cog import MusicCog
 from utils import load_token, setup_logging
 from discord.ext import commands
 from help_message import HelpMessage
+from config import *
+import logging
 
 intents = discord.Intents.default()
 intents.message_content = True  # Required for commands to be able to read arguments
@@ -36,11 +37,11 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
     if isinstance(error, commands.CommandNotFound):
         await ctx.send(embed=Embed(title="🤷‍ Command Not Found️",
                                    description="Type `!help` to see the list of available commands",
-                                   color=0xFF6900))
+                                   color=ERROR_COLOR))
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send(embed=Embed(title=f"🤔 Oops! You’re missing something!",
                                    description=f"Type `!help {ctx.command.name}` for more information",
-                                   color=0xFF0000))
+                                   color=ERROR_COLOR))
     else:  # error occurred in the command code
         logging.error(f"Error occurred in command: {ctx.command}")
         logging.error(error)
