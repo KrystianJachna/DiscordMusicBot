@@ -7,7 +7,6 @@ from .music.song_queue import BgDownloadSongQueue
 from .music.song_cache import LRUSongsCache
 from .music.music_downlaoder import SongDownloader
 from config import *
-import logging
 
 class MusicCog(commands.Cog):
 
