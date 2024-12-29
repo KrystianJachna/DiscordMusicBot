@@ -58,7 +58,9 @@ class SongDownloader:
             'match_filter': '!is_live',
             'logger': YtDlpLogger(),
         }
-        self._load_cookies(cookies_path)  # cookies are required to be able to download age-restricted songs
+        # self._load_cookies(cookies_path)  # cookies are required to be able to download age-restricted songs
+        # since they change frequently, it's better to use them only in local
+        # environments
         self._song_cache: SongsCache = song_cache
 
     async def prepare_song(self, query: str) -> Song:
