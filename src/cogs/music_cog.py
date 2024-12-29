@@ -72,12 +72,6 @@ class MusicCog(commands.Cog):
         await music_player.clear_queue()
         await ctx.send(embed=clear())
 
-    @tasks.loop(minutes=5)
-    async def check_listeners(self) -> None:
-        for guild_id, music_player in self._servers_music_players.items():
-            if not music_player.voice_client.channel.members:
-                await self._stop_music_player(guild_id)
-
     async def _stop_music_player(self, guild_id: int) -> None:
         try:
             music_player = self._servers_music_players[guild_id]
@@ -85,6 +79,12 @@ class MusicCog(commands.Cog):
             return
         await music_player.stop()
         self._servers_music_players.pop(guild_id, None)
+
+    @tasks.loop(seconds=NO_USERS_DISCONNECT_TIMEOUT)
+    async def check_listeners(self) -> None:
+        for guild_id, music_player in self._servers_music_players.items():
+            if not music_player.voice_client.channel.members:
+                await self._stop_music_player(guild_id)
 
     @play.before_invoke
     async def connect_on_command(self, ctx: commands.Context) -> None:

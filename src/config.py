@@ -8,3 +8,5 @@ COOKIES_PATH = Path("cookies.txt")
 LOG_PATH = Path("bot.log")
 
 CACHE_SIZE = 100
+
+NO_USERS_DISCONNECT_TIMEOUT = 60 * 5  # 5 minutes
