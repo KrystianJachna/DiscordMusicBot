@@ -15,7 +15,7 @@ intents.message_content = True  # Required for commands to be able to read argum
 
 bot: commands.Bot = commands.Bot(
     command_prefix="!",
-    description="Relatively simple music bot with some extra features for gaming",
+    description="Music bot for Discord, built with discord.py and youtube-dl",
     intents=intents,
     help_command=HelpMessage()
 )
@@ -57,7 +57,6 @@ async def main() -> None:
             await bot.start(token)
     except discord.LoginFailure:
         logging.error("Failed to log in. Ensure the token is correct.")
-        logging.debug(format_exc())
     except Exception as e:
         logging.error(e)
         logging.debug(format_exc())
