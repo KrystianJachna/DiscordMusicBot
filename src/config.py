@@ -9,4 +9,5 @@ LOG_PATH = Path("bot.log")
 
 CACHE_SIZE = 100
 
-NO_USERS_DISCONNECT_TIMEOUT = 60 * 5  # 5 minutes
+NO_USERS_DISCONNECT_TIMEOUT = 60 * 20  # 20 minutes
+NO_MUSIC_DISCONNECT_TIMEOUT = 60 * 5  # 5 minutes

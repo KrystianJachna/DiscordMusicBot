@@ -7,7 +7,7 @@ from .music.song_queue import BgDownloadSongQueue
 from .music.song_cache import LRUSongsCache
 from .music.music_downlaoder import SongDownloader
 from config import *
-
+import logging
 
 class MusicCog(commands.Cog):
 
@@ -16,6 +16,8 @@ class MusicCog(commands.Cog):
         self._servers_music_players: dict[int, MusicPlayer] = {}  # guild_id: MusicPlayer
         song_cache = LRUSongsCache(songs_size=CACHE_SIZE)
         self._song_downloader = SongDownloader(song_cache, COOKIES_PATH)
+        self.check_music.start()
+        self.check_listeners.start()
 
     @commands.command(description=PLAY_DESCRIPTION)
     async def play(self, ctx: commands.Context, *, search: str) -> None:
@@ -82,9 +84,16 @@ class MusicCog(commands.Cog):
 
     @tasks.loop(seconds=NO_USERS_DISCONNECT_TIMEOUT)
     async def check_listeners(self) -> None:
-        for guild_id, music_player in self._servers_music_players.items():
+        for guild_id, music_player in self._servers_music_players.copy().items():
             if not music_player.voice_client.channel.members:
                 await self._stop_music_player(guild_id)
+
+    @tasks.loop(seconds=NO_MUSIC_DISCONNECT_TIMEOUT)
+    async def check_music(self) -> None:
+        for guild_id, music_player in self._servers_music_players.copy().items():
+            if not music_player.now_playing and not await music_player.queue_length():
+                await self._stop_music_player(guild_id)
+
 
     @play.before_invoke
     async def connect_on_command(self, ctx: commands.Context) -> None:
