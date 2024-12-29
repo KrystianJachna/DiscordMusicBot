@@ -42,8 +42,9 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
                                    description=f"Type `!help {ctx.command.name}` for more information",
                                    color=0xFF0000))
     else:  # error occurred in the command code
+        logging.error(f"Error occurred in command: {ctx.command}")
         logging.error(error)
-        logging.debug(format_exc())
+        logging.debug(format_exc() if format_exc() != "NoneType: None\n" else "No traceback available")
 
 
 async def main() -> None:
