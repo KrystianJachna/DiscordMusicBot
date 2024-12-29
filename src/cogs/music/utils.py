@@ -14,7 +14,7 @@ PAUSE_DESCRIPTION = ("Pause the currently playing song, use `!resume` to resume 
                      "Usage: `!pause`")
 RESUME_DESCRIPTION = ("Resume playback of the paused song, if not paused, does nothing.\n"
                       "Usage: `!resume`")
-LOOP_DESCRIPTION = ("Toggle looping for the current playlist."
+LOOP_DESCRIPTION = ("Toggle looping for the current playlist. "
                     "It prioritizes songs that are being added to the queue, over those that were already played.\n"
                     "Usage: `!loop` to toggle looping on or off.")
 QUEUE_DESCRIPTION = ("Show the current queue of songs.\n"
