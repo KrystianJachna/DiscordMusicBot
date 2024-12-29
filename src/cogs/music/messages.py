@@ -123,7 +123,7 @@ def queue(now_playing: Song, coming_next: list[str], looping_enabled: bool) -> E
         waiting_in_queue = "- " + "\n- ".join(coming_next) if coming_next else "No songs in queue"
         message.add_field(name="Coming Next:", value=waiting_in_queue)
     else:
-        message = Embed(title="🎵Music Queue",
+        message = Embed(title="🎵 Music Queue",
                         description="No songs in queue",
                         color=SUCCESS_COLOR)
     if looping_enabled:
