@@ -8,7 +8,6 @@ import yt_dlp
 from pathlib import Path
 from .song_cache import SongsCache, LRUSongsCache
 from .song import Song
-from typing import Optional
 
 
 class YtDlpLogger:
@@ -33,11 +32,6 @@ class YtDlpLogger:
 
 
 class SongDownloader:
-    """
-    Singleton class that constructs a Song object from a search query.
-    Because of reading cookies, and the need to cache songs, it is a singleton.
-    """
-    _instance: Optional['SongDownloader'] = None
 
     class NoResultsFoundException(Exception):
 
@@ -53,11 +47,6 @@ class SongDownloader:
 
         def __init__(self, query: str) -> None:
             super().__init__(f"Age restricted song found for: {query}\nPlease try a different search query")
-
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super(SongDownloader, cls).__new__(cls)
-        return cls._instance
 
     def __init__(self, song_cache: SongsCache = LRUSongsCache, cookies_path: Path = Path('cookies.txt')):
         self._youtube_regex = re.compile(
@@ -91,6 +80,9 @@ class SongDownloader:
 
     def _construct_song(self, query: str) -> Song:
         url = self._get_url(query)
+        if url in self._song_cache:
+            logging.debug(f"_construct_song: song found in cache for: {query}")
+            return self._song_cache[url]
         with yt_dlp.YoutubeDL(self._yt_dlp_opts) as ydl:
             try:
                 info = ydl.extract_info(url, download=False)

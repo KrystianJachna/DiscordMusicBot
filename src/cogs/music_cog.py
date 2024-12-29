@@ -4,6 +4,7 @@ from discord.ext import commands, tasks
 from .music.messages import *
 
 from .music.music_service import MusicPlayer, BgDownloadSongQueue
+from .music.song_cache import LRUSongsCache
 
 
 class MusicCog(commands.Cog):
@@ -11,6 +12,7 @@ class MusicCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self.servers_music_players: dict[int, MusicPlayer] = {}  # guild_id: MusicPlayer
+        self.song_cache = LRUSongsCache()
 
     @commands.command(description=PLAY_DESCRIPTION)
     async def play(self, ctx: commands.Context, *, search: str) -> None:
@@ -88,7 +90,7 @@ class MusicCog(commands.Cog):
             raise commands.CommandError("User not connected to a voice channel.")
         if ctx.voice_client is None:
             voice_client = await ctx.author.voice.channel.connect()
-            self.servers_music_players[ctx.guild.id] = MusicPlayer(voice_client, BgDownloadSongQueue())
+            self.servers_music_players[ctx.guild.id] = MusicPlayer(voice_client, BgDownloadSongQueue(self.song_cache))
 
     @commands.Cog.listener()
     async def on_voice_state_update(self,

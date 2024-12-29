@@ -9,7 +9,7 @@ from traceback import format_exc
 from .music_downlaoder import SongDownloader
 from discord.ext.commands import Context
 from .messages import *
-from .song_cache import LRUSongsCache
+from .song_cache import SongsCache
 
 class SongQueue(ABC):
     class EndOfPlaylistException(Exception):
@@ -157,8 +157,8 @@ class BgDownloadSongQueue(SongQueue):
         def elements(self):
             return self._elements
 
-    def __init__(self):
-        self._music_downloader = SongDownloader(LRUSongsCache())
+    def __init__(self, song_cache: SongsCache):
+        self._music_downloader = SongDownloader(song_cache)
         self._downloaded_songs: BgDownloadSongQueue.TrackedAsyncQueue = BgDownloadSongQueue.TrackedAsyncQueue()
         self._waiting_queries: list[tuple[str, Context]] = []
         self._now_processing: Optional[str] = None
