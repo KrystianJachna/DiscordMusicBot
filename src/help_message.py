@@ -47,3 +47,9 @@ class HelpMessage(HelpCommand):
             embed.add_field(name="!" + command.name, value=command.description or "No description", inline=False)
         channel = self.get_destination()
         await channel.send(embed=embed)
+
+    async def command_not_found(self, string: str, /) -> str:
+        channel = self.get_destination()
+        await channel.send(
+            embed=Embed(title=f"Command: `{string}` not found", color=self.color))
+        return ""
