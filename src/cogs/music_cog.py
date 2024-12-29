@@ -1,10 +1,10 @@
 import logging
-from typing import Optional
 
 import discord
 from discord.ext import commands, tasks
 
-from .music.messages import *
+from .music.utils import *
+
 from .music.music_service import MusicPlayer, BgDownloadSongQueue
 
 
@@ -19,13 +19,12 @@ class MusicCog(commands.Cog):
         self.bot = bot
         self.servers_music_players: dict[int, MusicPlayer] = {}  # guild_id: MusicPlayer
 
-
-    @commands.command(description="Play a song or add it to the queue, use !play <url or search query>")
+    @commands.command(description=PLAY_DESCRIPTION)
     async def play(self, ctx: commands.Context, *, search: str) -> None:
         music_player = self.servers_music_players[ctx.guild.id]
         await music_player.play(search, ctx)
 
-    @commands.command(description="Skip the currently playing song")
+    @commands.command(description=SKIP_DESCRIPTION)
     async def skip(self, ctx: commands.Context) -> None:
         music_player = self.servers_music_players[ctx.guild.id]
         try:
@@ -34,13 +33,12 @@ class MusicCog(commands.Cog):
         except MusicPlayer.NotPlayingException:
             await ctx.send(embed=not_playing())
 
-    @commands.command(description="Stop playback and clear the music player")
+    @commands.command(description=STOP_DESCRIPTION)
     async def stop(self, ctx: commands.Context) -> None:
         await ctx.send(embed=stopped())
-        logging.debug(f"Stopping music player for guild: {ctx.guild.id}")
         await self._stop_music_player(ctx.guild.id)
 
-    @commands.command(description="Pause the currently playing song")
+    @commands.command(description=PAUSE_DESCRIPTION)
     async def pause(self, ctx: commands.Context) -> None:
         music_player = self.servers_music_players[ctx.guild.id]
         try:
@@ -49,7 +47,7 @@ class MusicCog(commands.Cog):
         except MusicPlayer.NotPlayingException:
             await ctx.send(embed=not_playing())
 
-    @commands.command(description="Resume playback of the paused song")
+    @commands.command(description=RESUME_DESCRIPTION)
     async def resume(self, ctx: commands.Context) -> None:
         music_player = self.servers_music_players[ctx.guild.id]
         try:
@@ -58,19 +56,19 @@ class MusicCog(commands.Cog):
         except MusicPlayer.NotPlayingException:
             await ctx.send(embed=not_playing())
 
-    @commands.command(description="Toggle looping for the current playlist")
+    @commands.command(description=LOOP_DESCRIPTION)
     async def loop(self, ctx: commands.Context) -> None:
         music_player = self.servers_music_players[ctx.guild.id]
         music_player.loop = not music_player.loop
         await ctx.send(embed=looping(music_player.loop))
 
-    @commands.command(description="View the current music queue")
+    @commands.command(description=QUEUE_DESCRIPTION)
     async def queue(self, ctx: commands.Context) -> None:
         music_player = self.servers_music_players[ctx.guild.id]
         queue_info = await music_player.get_queue_info()
         await ctx.send(embed=queue(queue_info, music_player.loop))
 
-    @commands.command(description="Clear all songs from the queue")
+    @commands.command(description=CLEAR_DESCRIPTION)
     async def clear(self, ctx: commands.Context) -> None:
         music_player = self.servers_music_players[ctx.guild.id]
         await music_player.clear_queue()
@@ -89,7 +87,6 @@ class MusicCog(commands.Cog):
             return
         await music_player.stop()
         self.servers_music_players.pop(guild_id, None)
-
 
     @play.before_invoke
     async def connect_on_command(self, ctx: commands.Context) -> None:

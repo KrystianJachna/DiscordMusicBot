@@ -4,6 +4,24 @@ from discord import Embed
 
 from .music_downlaoder import Song
 
+PLAY_DESCRIPTION = ("Play a song from youtube or add it to the queue.\n"
+                    "Usage `!play <url or search query>`")
+SKIP_DESCRIPTION = ("Skip the currently playing song and play the next one in the queue.\n"
+                    "Usage `!skip`")
+STOP_DESCRIPTION = ("Stop playback and clear the queue, the bot will leave the voice channel.\n"
+                    "Usage `!stop`")
+PAUSE_DESCRIPTION = ("Pause the currently playing song, use `!resume` to resume playback.\n"
+                     "Usage `!pause`")
+RESUME_DESCRIPTION = ("Resume playback of the paused song, needs to be paused first by `!pause`.\n"
+                      "Usage `!resume`")
+LOOP_DESCRIPTION = ("Toggle looping for the current playlist.\n"
+                    "It prioritizes songs that are being added to the queue, over those that were already played.\n"
+                    "Usage `!loop` to toggle looping on or off.")
+QUEUE_DESCRIPTION = ("Show the current queue of songs.\n"
+                     "Usage `!queue`")
+CLEAR_DESCRIPTION = ("Clear all songs from the queue. Does not affect the currently playing song.\n"
+                     "Usage `!clear`")
+
 
 def added_to_queue(song: Song, queue_elements: int) -> Embed:
     message = Embed(title="Song Added to Queue 🎶",

@@ -6,11 +6,10 @@ from typing import Optional
 from discord import VoiceClient
 from traceback import format_exc
 
-from .messages import *
 from .music_downlaoder import SongDownloader
 from .song_cache import LRUSongsCache
 from discord.ext.commands import Context
-from .messages import *
+from .utils import *
 from .song_cache import LRUSongsCache
 
 
