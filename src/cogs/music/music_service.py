@@ -90,7 +90,7 @@ class MusicPlayer:
                 except SongQueue.EndOfPlaylistException:
                     if self.loop and self._looped_songs:
                         self._now_playing = self._looped_songs.pop(0)
-                    else:  # TODO: disconnect after timeout
+                    else:
                         break
                 source = await self._now_playing.get_source()
                 finished = asyncio.Event()

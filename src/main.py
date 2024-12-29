@@ -2,20 +2,19 @@ import asyncio
 from traceback import format_exc
 
 import discord
-from discord import Embed
-from cogs.music_cog import MusicCog
-from utils import load_token, setup_logging
 from discord.ext import commands
+import logging
+from utils import load_token, setup_logging
+from cogs.music_cog import MusicCog
 from help_message import HelpMessage
 from config import *
-import logging
 
 intents = discord.Intents.default()
 intents.message_content = True  # Required for commands to be able to read arguments
 
 bot: commands.Bot = commands.Bot(
     command_prefix="!",
-    description="Relatively simple music bot with some extra features for gaming",
+    description="Music bot for Discord, built with discord.py and youtube-dl",
     intents=intents,
     help_command=HelpMessage()
 )
@@ -35,13 +34,13 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
     through user input or through an error in the command itself.
     """
     if isinstance(error, commands.CommandNotFound):
-        await ctx.send(embed=Embed(title="🤷‍ Command Not Found️",
-                                   description="Type `!help` to see the list of available commands",
-                                   color=ERROR_COLOR))
+        await ctx.send(embed=discord.Embed(title="🤷‍ Command Not Found️",
+                                           description="Type `!help` to see the list of available commands",
+                                           color=ERROR_COLOR))
     elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send(embed=Embed(title=f"🤔 Oops! You’re missing something!",
-                                   description=f"Type `!help {ctx.command.name}` for more information",
-                                   color=ERROR_COLOR))
+        await ctx.send(embed=discord.Embed(title=f"🤔 Oops! You’re missing something!",
+                                           description=f"Type `!help {ctx.command.name}` for more information",
+                                           color=ERROR_COLOR))
     else:  # error occurred in the command code
         logging.error(f"Error occurred in command: {ctx.command}")
         logging.error(error)
@@ -57,7 +56,6 @@ async def main() -> None:
             await bot.start(token)
     except discord.LoginFailure:
         logging.error("Failed to log in. Ensure the token is correct.")
-        logging.debug(format_exc())
     except Exception as e:
         logging.error(e)
         logging.debug(format_exc())

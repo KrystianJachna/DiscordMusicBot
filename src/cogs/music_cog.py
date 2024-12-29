@@ -2,18 +2,22 @@ import discord
 from discord.ext import commands, tasks
 
 from .music.messages import *
-import logging
 from .music.music_service import MusicPlayer
 from .music.song_queue import BgDownloadSongQueue
 from .music.song_cache import LRUSongsCache
-
+from .music.music_downlaoder import SongDownloader
+from config import *
+import logging
 
 class MusicCog(commands.Cog):
 
     def __init__(self, bot: commands.Bot) -> None:
         self._bot = bot
         self._servers_music_players: dict[int, MusicPlayer] = {}  # guild_id: MusicPlayer
-        self._song_cache = LRUSongsCache()
+        song_cache = LRUSongsCache(songs_size=CACHE_SIZE)
+        self._song_downloader = SongDownloader(song_cache, COOKIES_PATH)
+        self.check_music.start()
+        self.check_listeners.start()
 
     @commands.command(description=PLAY_DESCRIPTION)
     async def play(self, ctx: commands.Context, *, search: str) -> None:
@@ -62,9 +66,6 @@ class MusicCog(commands.Cog):
     async def queue(self, ctx: commands.Context) -> None:
         music_player = self._servers_music_players[ctx.guild.id]
         now_playing, waiting = await music_player.get_queue_info()
-        logging.debug(f"Queue: {waiting}")
-        logging.debug(f"Looped songs: {music_player.loop}")
-        logging.debug(f"Now playing: {now_playing}")
         await ctx.send(embed=queue(now_playing, waiting, music_player.loop))
 
     @commands.command(description=CLEAR_DESCRIPTION)
@@ -72,12 +73,6 @@ class MusicCog(commands.Cog):
         music_player = self._servers_music_players[ctx.guild.id]
         await music_player.clear_queue()
         await ctx.send(embed=clear())
-
-    @tasks.loop(minutes=5)
-    async def check_listeners(self) -> None:
-        for guild_id, music_player in self._servers_music_players.items():
-            if not music_player.voice_client.channel.members:
-                await self._stop_music_player(guild_id)
 
     async def _stop_music_player(self, guild_id: int) -> None:
         try:
@@ -87,6 +82,19 @@ class MusicCog(commands.Cog):
         await music_player.stop()
         self._servers_music_players.pop(guild_id, None)
 
+    @tasks.loop(seconds=NO_USERS_DISCONNECT_TIMEOUT)
+    async def check_listeners(self) -> None:
+        for guild_id, music_player in self._servers_music_players.copy().items():
+            if not music_player.voice_client.channel.members:
+                await self._stop_music_player(guild_id)
+
+    @tasks.loop(seconds=NO_MUSIC_DISCONNECT_TIMEOUT)
+    async def check_music(self) -> None:
+        for guild_id, music_player in self._servers_music_players.copy().items():
+            if not music_player.now_playing and not await music_player.queue_length():
+                await self._stop_music_player(guild_id)
+
+
     @play.before_invoke
     async def connect_on_command(self, ctx: commands.Context) -> None:
         if ctx.author.voice is None:
@@ -95,7 +103,7 @@ class MusicCog(commands.Cog):
         if ctx.voice_client is None:
             voice_client = await ctx.author.voice.channel.connect()
             self._servers_music_players[ctx.guild.id] = MusicPlayer(voice_client,
-                                                                    BgDownloadSongQueue(self._song_cache))
+                                                                    BgDownloadSongQueue(self._song_downloader))
 
     @commands.Cog.listener()
     async def on_voice_state_update(self,

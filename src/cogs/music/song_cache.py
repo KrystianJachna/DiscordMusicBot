@@ -27,9 +27,9 @@ class LRUSongsCache(SongsCache):
     related queries. Songs are stored by their URL and queries.
     """
 
-    def __init__(self, song_size: int = 100, query_size: int = 300):
-        self._url_cache: LRUCache[str, Song] = LRUCache(maxsize=song_size)  # url -> song
-        self._query_cache: LRUCache[str, str] = LRUCache(maxsize=query_size)  # query -> url
+    def __init__(self, songs_size: int, queries_size: int = 500):
+        self._url_cache: LRUCache[str, Song] = LRUCache(maxsize=songs_size)  # url: song
+        self._query_cache: LRUCache[str, str] = LRUCache(maxsize=queries_size)  # query: url
         self._youtube_regex = re.compile(
             r"https?://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)([\w\-_]*)(&(amp;)?‌​[\w?‌​=]*)?"
         )
