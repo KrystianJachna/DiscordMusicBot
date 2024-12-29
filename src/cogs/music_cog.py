@@ -1,19 +1,12 @@
-import logging
-
 import discord
 from discord.ext import commands, tasks
 
-from .music.utils import *
+from .music.messages import *
 
 from .music.music_service import MusicPlayer, BgDownloadSongQueue
 
 
 class MusicCog(commands.Cog):
-    """
-    Music commands for the bot
-
-    :param bot: The bot instance
-    """
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
@@ -31,7 +24,7 @@ class MusicCog(commands.Cog):
             await music_player.skip()
             await ctx.send(embed=skipped(await music_player.queue_length()))
         except MusicPlayer.NotPlayingException:
-            await ctx.send(embed=not_playing())
+            await ctx.send(embed=skip_error())
 
     @commands.command(description=STOP_DESCRIPTION)
     async def stop(self, ctx: commands.Context) -> None:
@@ -43,7 +36,7 @@ class MusicCog(commands.Cog):
         music_player = self.servers_music_players[ctx.guild.id]
         try:
             await music_player.pause()
-            await ctx.send(embed=paused(music_player.now_playing.title))
+            await ctx.send(embed=paused(music_player.now_playing.title, music_player.now_playing.url))
         except MusicPlayer.NotPlayingException:
             await ctx.send(embed=not_playing())
 
@@ -52,7 +45,7 @@ class MusicCog(commands.Cog):
         music_player = self.servers_music_players[ctx.guild.id]
         try:
             await music_player.resume()
-            await ctx.send(embed=resumed(music_player.now_playing.title))
+            await ctx.send(embed=resumed(music_player.now_playing.title, music_player.now_playing.url))
         except MusicPlayer.NotPlayingException:
             await ctx.send(embed=not_playing())
 
