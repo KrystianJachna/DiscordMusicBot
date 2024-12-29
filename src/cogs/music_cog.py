@@ -3,7 +3,8 @@ from discord.ext import commands, tasks
 
 from .music.messages import *
 
-from .music.music_service import MusicPlayer, BgDownloadSongQueue
+from .music.music_service import MusicPlayer
+from .music.song_queue import BgDownloadSongQueue
 from .music.song_cache import LRUSongsCache
 
 
@@ -90,7 +91,8 @@ class MusicCog(commands.Cog):
             raise commands.CommandError("User not connected to a voice channel.")
         if ctx.voice_client is None:
             voice_client = await ctx.author.voice.channel.connect()
-            self.servers_music_players[ctx.guild.id] = MusicPlayer(voice_client, BgDownloadSongQueue(self.song_cache))
+            self.servers_music_players[ctx.guild.id] = MusicPlayer(voice_client,
+                                                                   BgDownloadSongQueue(self.song_cache))
 
     @commands.Cog.listener()
     async def on_voice_state_update(self,
