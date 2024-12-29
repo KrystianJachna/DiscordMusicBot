@@ -36,11 +36,11 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
     """
     if isinstance(error, commands.CommandNotFound):
         await ctx.send(embed=Embed(title="🤷‍ Command Not Found️",
-                                   description="Type `!help` to see the list of available commands",
+                                   description="Type `!help` to see the list of available commands.",
                                    color=ERROR_COLOR))
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send(embed=Embed(title=f"🤔 Oops! You’re missing something!",
-                                   description=f"Type `!help {ctx.command.name}` for more information",
+                                   description=f"Type `!help {ctx.command.name}` for more information.",
                                    color=ERROR_COLOR))
     else:  # error occurred in the command code
         logging.error(f"Error occurred in command: {ctx.command}")
