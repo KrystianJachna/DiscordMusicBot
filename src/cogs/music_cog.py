@@ -2,10 +2,11 @@ import discord
 from discord.ext import commands, tasks
 
 from .music.messages import *
-import logging
 from .music.music_service import MusicPlayer
 from .music.song_queue import BgDownloadSongQueue
 from .music.song_cache import LRUSongsCache
+from .music.music_downlaoder import SongDownloader
+from config import *
 
 
 class MusicCog(commands.Cog):
@@ -13,7 +14,8 @@ class MusicCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self._bot = bot
         self._servers_music_players: dict[int, MusicPlayer] = {}  # guild_id: MusicPlayer
-        self._song_cache = LRUSongsCache()
+        song_cache = LRUSongsCache(songs_size=CACHE_SIZE)
+        self._song_downloader = SongDownloader(song_cache, COOKIES_PATH)
 
     @commands.command(description=PLAY_DESCRIPTION)
     async def play(self, ctx: commands.Context, *, search: str) -> None:
@@ -62,9 +64,6 @@ class MusicCog(commands.Cog):
     async def queue(self, ctx: commands.Context) -> None:
         music_player = self._servers_music_players[ctx.guild.id]
         now_playing, waiting = await music_player.get_queue_info()
-        logging.debug(f"Queue: {waiting}")
-        logging.debug(f"Looped songs: {music_player.loop}")
-        logging.debug(f"Now playing: {now_playing}")
         await ctx.send(embed=queue(now_playing, waiting, music_player.loop))
 
     @commands.command(description=CLEAR_DESCRIPTION)
@@ -95,7 +94,7 @@ class MusicCog(commands.Cog):
         if ctx.voice_client is None:
             voice_client = await ctx.author.voice.channel.connect()
             self._servers_music_players[ctx.guild.id] = MusicPlayer(voice_client,
-                                                                    BgDownloadSongQueue(self._song_cache))
+                                                                    BgDownloadSongQueue(self._song_downloader))
 
     @commands.Cog.listener()
     async def on_voice_state_update(self,

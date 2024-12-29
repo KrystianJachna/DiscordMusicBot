@@ -5,10 +5,9 @@ from typing import Optional
 
 from traceback import format_exc
 
-from .music_downlaoder import SongDownloader
 from discord.ext.commands import Context
 from .messages import *
-from .song_cache import SongsCache
+from .music_downlaoder import SongDownloader
 
 
 class SongQueue(ABC):
@@ -56,8 +55,8 @@ class BgDownloadSongQueue(SongQueue):
         def elements(self):
             return self._elements
 
-    def __init__(self, song_cache: SongsCache):
-        self._music_downloader = SongDownloader(song_cache)
+    def __init__(self, song_downloader: SongDownloader):
+        self._music_downloader = song_downloader
         self._downloaded_songs: BgDownloadSongQueue.TrackedAsyncQueue = BgDownloadSongQueue.TrackedAsyncQueue()
         self._waiting_queries: list[tuple[str, Context]] = []
         self._now_processing: Optional[str] = None
