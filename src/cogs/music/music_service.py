@@ -1,18 +1,20 @@
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple
+from typing import Optional
 
 from discord import VoiceClient
-from discord.ext import commands
+from traceback import format_exc
 
 from .messages import *
-from .music_downlaoder import SongFactory
+from .music_downlaoder import SongDownloader
+from .song_cache import LRUSongsCache
+from discord.ext.commands import Context
+from .messages import *
 from .song_cache import LRUSongsCache
 
 
-class MusicManager(ABC):
-
+class SongQueue(ABC):
     class EndOfPlaylistException(Exception):
         def __init__(self):
             super().__init__("End of playlist reached.")
@@ -22,171 +24,195 @@ class MusicManager(ABC):
         pass
 
     @abstractmethod
+    async def add(self, query: str, ctx: Context) -> None:
+        pass
+
+    @abstractmethod
     async def clear_queue(self) -> None:
         pass
 
+    @abstractmethod
+    async def get_queue_info(self) -> list[str]:
+        pass
 
 class MusicPlayer:
-
     class NotPlayingException(Exception):
         def __init__(self):
             super().__init__("Player is not playing")
 
-    def __init__(self, music_manager: MusicManager, voice_client: VoiceClient):
-        self._is_playing = False
-        self.music_manager = music_manager
-        self._voice_client = voice_client
-        self._singing: asyncio.Condition = asyncio.Condition()
-        self.event_loop = asyncio.get_event_loop()
-        self.keep_playing = True
+    def __init__(self, voice_client: VoiceClient, song_queue: SongQueue):
         self._now_playing: Optional[Song] = None
+        self._voice_client = voice_client
+        self._song_queue = song_queue
+        self._loop = False
+        self._processing_queue = False
+        self._looped_songs: list[Song] = []
+        self._clearing_queue = False
+        self._processing_task: Optional[asyncio.Task] = None
+
+    async def pause(self) -> None:
+        if not self._now_playing:
+            raise MusicPlayer.NotPlayingException
+        self._voice_client.pause()
+
+    async def resume(self):
+        if not self._now_playing:
+            raise MusicPlayer.NotPlayingException
+        self._voice_client.resume()
+
+    async def skip(self) -> None:
+        if not self._now_playing:
+            raise MusicPlayer.NotPlayingException
+        self._voice_client.stop()
+
+    @property
+    def loop(self) -> bool:
+        return self._loop
+
+    @loop.setter
+    def loop(self, value: bool) -> None:
+        self._loop = value
 
     @property
     def now_playing(self) -> Optional[Song]:
         return self._now_playing
 
-    async def pause(self) -> None:
-        if not self._is_playing:
-            raise MusicPlayer.NotPlayingException
-        self.voice_client.pause()
-
-    async def resume(self):
-        if not self._is_playing:
-            raise MusicPlayer.NotPlayingException
-        self.voice_client.resume()
-
-    async def skip(self) -> None:
-        self.voice_client.stop()
-
-    async def play_loop(self) -> None:
-        self._is_playing = True
-        while self.keep_playing:
-            try:
-                self._now_playing = await self.music_manager.next()
-                # TODO: add timeout to the play method
-            except MusicManager.EndOfPlaylistException:
-                break
-            async with self._singing:
-                source = await self._now_playing.get_source()
-                self.voice_client.play(
-                    source,
-                    after=lambda _: asyncio.run_coroutine_threadsafe(
-                        self._notify_singing(), self.event_loop
-                    )
-                )
-                await self._singing.wait()
-        self._is_playing = False
-
-    def get_now_playing(self) -> Optional[str]:
-        return f"[{self._now_playing.title}]({self._now_playing.url})" if self._now_playing else ""
-
-    async def _notify_singing(self) -> None:
-        self._now_playing = None
-        async with self._singing:
-            self._singing.notify_all()
-
-    async def stop(self) -> None:
-        self.keep_playing = False
-        self.voice_client.stop()
-        await self.music_manager.clear_queue()
-        await self.voice_client.disconnect()
-
-    @property
-    def is_playing(self) -> bool:
-        return self._is_playing
-
     @property
     def voice_client(self) -> VoiceClient:
         return self._voice_client
 
-
-class MusicQueue(MusicManager):
-
-    def __init__(self) -> None:
-        self.music_downloader = SongFactory(LRUSongsCache())
-        self.music_queue: asyncio.Queue[Song] = asyncio.Queue()
-        self.downloading_queue: list[Tuple[str, str, bool]] = []  # (query, url, silent)
-        self.downloaded_songs: list[str] = []
-        self.currently_downloading = False
-        self.download_task: Optional[asyncio.Task] = None
-        self.song_currently_downloading: Optional[str] = None
-        self._loop_music = False
-
-    @property
-    def loop_music(self) -> bool:
-        return self._loop_music
-
-    @loop_music.setter
-    def loop_music(self, value: bool) -> None:
-        self._loop_music = value
-
-    async def add(self, query: str, ctx: Optional[commands.Context], *, silent: bool = False,
-                  url: Optional[str] = None) -> None:
-        self.downloading_queue.append((query, url, silent))
-        if not self.currently_downloading:
-            await self._download(ctx)
-
-    async def _download(self, ctx: Optional[commands.Context]) -> None:
-        while self.downloading_queue:
-            message: Optional[Embed] = None
-            self.currently_downloading = True
-            self.song_currently_downloading, url, silent = self.downloading_queue.pop(0)
-            try:
-                search = url or self.song_currently_downloading
-                self.download_task = asyncio.create_task(
-                    self.music_downloader.prepare_song(search))
-                song = await self.download_task
-            except asyncio.CancelledError:
-                continue
-            except SongFactory.NoResultsFoundException as e:
-                message = no_results(self.song_currently_downloading)
-                continue
-            except SongFactory.LiveFoundException as e:
-                message = live_stream(self.song_currently_downloading)
-                continue
-            except SongFactory.AgeRestrictedException as e:
-                message = age_restricted(self.song_currently_downloading)
-                continue
-            except Exception as e:
-                message = download_error(self.song_currently_downloading)
-                logging.error(e)
-                continue
-            finally:
-                if ctx and message and not silent:
-                    await ctx.send(embed=message)
-            await self.music_queue.put(song)
-            self.downloaded_songs.append(song.title)
-            message = added_to_queue(song, self.queue_length, self.loop_music)
-            if ctx and not silent and message:
-                await ctx.send(embed=message)
-        self.currently_downloading = False
-
-    async def next(self) -> Song:
-        if self.music_queue.empty() and not self.currently_downloading:
-            raise MusicManager.EndOfPlaylistException
-        song = await self.music_queue.get()
-        if self.loop_music:
-            await self.add(song.title, None, silent=True, url=song.url)
-        self.downloaded_songs.remove(song.title)
-        return song
-
-    @property
-    def queue_length(self) -> int:
-        return self.music_queue.qsize()
+    async def stop(self) -> None:
+        await self._song_queue.clear_queue()
+        if self._processing_task:
+            self._processing_task.cancel()
+        self._voice_client.stop()
+        await self._voice_client.disconnect()
 
     async def clear_queue(self) -> None:
-        self.downloading_queue.clear()
+        await self._song_queue.clear_queue()
+        self._looped_songs.clear()
+        self._clearing_queue = True
 
-        if self.currently_downloading:
-            self.download_task.cancel()
+    async def get_queue_info(self) -> list[str]:
+        waiting_in_queue = await self._song_queue.get_queue_info()
+        now_playing = [self._now_playing.title] if self._now_playing else []
+        looped_songs = [song.title for song in self._looped_songs] if self._loop else []
+        return now_playing + waiting_in_queue + looped_songs
 
-        self.music_queue = asyncio.Queue()
-        self.downloaded_songs.clear()
+    async def queue_length(self) -> int:
+        return len(await self._song_queue.get_queue_info())
 
-    def get_queue_info(self) -> str:
-        downloaded = "- " + "\n- ".join(
-            '`' + title + '`' for title in self.downloaded_songs) + "\n" if self.downloaded_songs else ""
-        now_downloading = "- `" + self.song_currently_downloading + '`\n' if self.currently_downloading else ""
-        to_download = "- " + "\n- ".join(
-            '`' + query + '`' for query, _, _ in self.downloading_queue) + "\n" if self.downloading_queue else ""
-        return downloaded + now_downloading + to_download
+    async def play(self, query: str, ctx: Context) -> None:
+        await self._song_queue.add(query, ctx)
+        if not self._processing_queue:
+            self._processing_task = asyncio.create_task(self._process_song_queue())
+
+    async def _process_song_queue(self) -> None:
+        self._processing_queue = True
+        try:
+            while True:
+                try:
+                    self._now_playing = await self._song_queue.next()
+                except SongQueue.EndOfPlaylistException:
+                    if self.loop and self._looped_songs:
+                        self._now_playing = self._looped_songs.pop(0)
+                    else:  # TODO: disconnect after timeout
+                        break
+                source = await self._now_playing.get_source()
+                finished = asyncio.Event()
+                self._voice_client.play(source, after=lambda e: self._after_playing(e, finished))
+                await finished.wait()
+                self._now_playing = None
+        except asyncio.CancelledError:
+            logging.debug("Processing queue cancelled")
+        finally:
+            self._processing_queue = False
+
+    def _after_playing(self, error: Optional[Exception], finished: asyncio.Event) -> None:
+        if self.loop:
+            if self._clearing_queue:
+                self._clearing_queue = False
+            else:
+                self._looped_songs.append(self._now_playing)
+        self._now_playing = None
+        if error:
+            logging.error(f"Error playing song: {error}")
+            logging.debug(format_exc())
+        finished.set()
+
+
+class BgDownloadSongQueue(SongQueue):
+    class TrackedAsyncQueue(asyncio.Queue):
+        def __init__(self):
+            super().__init__()
+            self._elements = []
+
+        def put_nowait(self, item):
+            super().put_nowait(item)
+            self._elements.append(item)
+
+        def get_nowait(self):
+            item = super().get_nowait()
+            self._elements.remove(item)
+            return item
+
+        @property
+        def elements(self):
+            return self._elements
+
+    def __init__(self):
+        self._music_downloader = SongDownloader(LRUSongsCache())
+        self._downloaded_songs: BgDownloadSongQueue.TrackedAsyncQueue = BgDownloadSongQueue.TrackedAsyncQueue()
+        self._waiting_queries: list[tuple[str, Context]] = []
+        self._now_processing: Optional[str] = None
+        self._processing_task: Optional[asyncio.Task] = None
+
+    async def next(self) -> Song:
+        if self._downloaded_songs.empty() and not self._processing_task:
+            raise SongQueue.EndOfPlaylistException
+        return await self._downloaded_songs.get()
+
+    async def add(self, query: str, ctx: Context) -> None:
+        self._waiting_queries.append((query, ctx))
+        if not self._processing_task:
+            self._processing_task = asyncio.create_task(self._process_queue())
+
+    async def clear_queue(self) -> None:
+        if self._processing_task:
+            self._processing_task.cancel()
+        self._waiting_queries.clear()
+        self._downloaded_songs = BgDownloadSongQueue.TrackedAsyncQueue()
+
+    async def get_queue_info(self) -> list[str]:
+        downloaded_songs = self._downloaded_songs.elements
+        now_processing = [self._now_processing] if self._now_processing else []
+        waiting_queries = [query for query, _ in self._waiting_queries]
+        return downloaded_songs + now_processing + waiting_queries
+
+    async def queue_length(self) -> int:
+        return len(await self.get_queue_info())
+
+    async def _process_queue(self) -> None:
+        try:
+            while self._waiting_queries:
+                query, ctx = self._waiting_queries.pop(0)
+                self._now_processing = query
+                try:
+                    song = await self._music_downloader.prepare_song(query)
+                    await ctx.send(embed=added_to_queue(song, await self.queue_length()))
+                    self._downloaded_songs.put_nowait(song)
+                except SongDownloader.AgeRestrictedException:
+                    await ctx.send(embed=age_restricted(query))
+                except SongDownloader.NoResultsFoundException:
+                    await ctx.send(embed=no_results(query))
+                except SongDownloader.LiveFoundException:
+                    await ctx.send(embed=live_stream(query))
+                except Exception as e:
+                    if isinstance(e, asyncio.CancelledError): raise e
+                    logging.error(e)
+                    logging.debug(format_exc())
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self._now_processing = None
+            self._processing_task = None
