@@ -2,6 +2,8 @@ import asyncio
 import re
 import logging
 from traceback import format_exc
+from typing import Optional
+
 from youtube_search import YoutubeSearch
 
 import yt_dlp
@@ -48,7 +50,7 @@ class SongDownloader:
         def __init__(self, query: str) -> None:
             super().__init__(f"Age restricted song found for: {query}\nPlease try a different search query")
 
-    def __init__(self, song_cache: SongsCache = LRUSongsCache, cookies_path: Path = Path('cookies.txt')):
+    def __init__(self, song_cache: SongsCache, cookies_path: Optional[Path]):
         self._youtube_regex = re.compile(
             r"https?://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)([\w\-_]*)(&(amp;)?‌​[\w?‌​=]*)?"
         )
@@ -58,9 +60,7 @@ class SongDownloader:
             'match_filter': '!is_live',
             'logger': YtDlpLogger(),
         }
-        # self._load_cookies(cookies_path)  # cookies are required to be able to download age-restricted songs
-        # since they change frequently, it's better to use them only in local
-        # environments
+        self._load_cookies(cookies_path)  # cookies are required to be able to download age-restricted songs
         self._song_cache: SongsCache = song_cache
 
     async def prepare_song(self, query: str) -> Song:
@@ -72,6 +72,8 @@ class SongDownloader:
         return song
 
     def _load_cookies(self, cookies_path: Path) -> None:
+        if not cookies_path:
+            return
         if cookies_path.exists():
             logging.info(f"Cookies file loaded from {str(cookies_path)}")
             self._yt_dlp_opts['cookiefile'] = str(cookies_path)
