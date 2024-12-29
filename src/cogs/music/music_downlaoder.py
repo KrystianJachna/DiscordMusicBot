@@ -8,7 +8,6 @@ import yt_dlp
 from pathlib import Path
 from .song_cache import SongsCache, LRUSongsCache
 from .song import Song
-from typing import Optional
 
 
 class YtDlpLogger:
@@ -32,12 +31,7 @@ class YtDlpLogger:
         logging.error(f"{self._LOG_PREFIX}{msg}")
 
 
-class SongFactory:
-    """
-    Singleton class that constructs a Song object from a search query.
-    Because of reading cookies, and the need to cache songs, it is a singleton.
-    """
-    _instance: Optional['SongFactory'] = None
+class SongDownloader:
 
     class NoResultsFoundException(Exception):
 
@@ -54,11 +48,6 @@ class SongFactory:
         def __init__(self, query: str) -> None:
             super().__init__(f"Age restricted song found for: {query}\nPlease try a different search query")
 
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super(SongFactory, cls).__new__(cls)
-        return cls._instance
-
     def __init__(self, song_cache: SongsCache = LRUSongsCache, cookies_path: Path = Path('cookies.txt')):
         self._youtube_regex = re.compile(
             r"https?://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)([\w\-_]*)(&(amp;)?‌​[\w?‌​=]*)?"
@@ -69,7 +58,9 @@ class SongFactory:
             'match_filter': '!is_live',
             'logger': YtDlpLogger(),
         }
-        self._load_cookies(cookies_path)  # cookies are required to be able to download age-restricted songs
+        # self._load_cookies(cookies_path)  # cookies are required to be able to download age-restricted songs
+        # since they change frequently, it's better to use them only in local
+        # environments
         self._song_cache: SongsCache = song_cache
 
     async def prepare_song(self, query: str) -> Song:
@@ -91,18 +82,21 @@ class SongFactory:
 
     def _construct_song(self, query: str) -> Song:
         url = self._get_url(query)
+        if url in self._song_cache:
+            logging.debug(f"_construct_song: song found in cache for: {query}")
+            return self._song_cache[url]
         with yt_dlp.YoutubeDL(self._yt_dlp_opts) as ydl:
             try:
                 info = ydl.extract_info(url, download=False)
             except yt_dlp.utils.DownloadError as e:
                 error_msg = str(e)
                 if "Sign in to confirm your age" in error_msg:
-                    raise SongFactory.AgeRestrictedException(query)
+                    raise SongDownloader.AgeRestrictedException(query)
                 logging.debug(format_exc())
-                raise SongFactory.NoResultsFoundException(query)
+                raise SongDownloader.NoResultsFoundException(query)
 
         if info.get('is_live', False):
-            raise SongFactory.LiveFoundException(query)
+            raise SongDownloader.LiveFoundException(query)
 
         return Song(title=info['title'],
                     url=url,
@@ -117,5 +111,5 @@ class SongFactory:
         search = YoutubeSearch(query, max_results=1).to_dict()
         if not search:
             logging.debug(f"_get_url: No results found for: {query}")
-            raise SongFactory.NoResultsFoundException(query)
+            raise SongDownloader.NoResultsFoundException(query)
         return f"https://www.youtube.com/watch?v={search[0]['id']}"
