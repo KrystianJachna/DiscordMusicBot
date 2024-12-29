@@ -13,9 +13,8 @@ def load_token() -> str:
         token = getenv("DISCORD_TOKEN")
 
     if not token:
-        raise Exception(
-            "Failed to load token. Ensure DISCORD_TOKEN is set in Docker environment or in the .env file."
-        )
+        raise Exception("Failed to load token. "
+                        "Ensure DISCORD_TOKEN is set in Docker environment or in the .env file.")
     return token
 
 
