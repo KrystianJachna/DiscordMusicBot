@@ -58,9 +58,10 @@ class MusicPlayer:
 
     async def stop(self) -> None:
         await self._song_queue.clear_queue()
+        if self._now_playing:
+            self._voice_client.stop()
         if self._processing_task:
             self._processing_task.cancel()
-        self._voice_client.stop()
         await self._voice_client.disconnect()
 
     async def clear_queue(self) -> None:
