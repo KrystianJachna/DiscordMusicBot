@@ -154,3 +154,9 @@ def looping(looping_enabled: bool) -> Embed:
     return Embed(title=f"🔄 Looping",
                  description=description,
                  color=SUCCESS_COLOR)
+
+
+def not_in_same_voice_channel(bot_channel: str) -> Embed:
+    return Embed(title="⛔ Not in the Same Voice Channel",
+                 description=f"You must be in the same voice channel as the bot: **{bot_channel}**",
+                 color=ERROR_COLOR)

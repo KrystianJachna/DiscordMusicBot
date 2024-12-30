@@ -8,6 +8,7 @@ from .music.song_cache import LRUSongsCache
 from .music.music_downlaoder import SongDownloader
 from config import *
 
+
 class MusicCog(commands.Cog):
 
     def __init__(self, bot: commands.Bot) -> None:
@@ -15,7 +16,7 @@ class MusicCog(commands.Cog):
         self._servers_music_players: dict[int, MusicPlayer] = {}  # guild_id: MusicPlayer
         song_cache = LRUSongsCache(songs_size=CACHE_SIZE)
         self._song_downloader = SongDownloader(song_cache, COOKIES_PATH)
-        self.check_music.start()
+        self.monitor_music_player_status.start()
         self.check_listeners.start()
 
     @commands.command(description=PLAY_DESCRIPTION)
@@ -81,6 +82,20 @@ class MusicCog(commands.Cog):
         await music_player.stop()
         self._servers_music_players.pop(guild_id, None)
 
+    @staticmethod
+    async def _is_on_same_channel(ctx: commands.Context) -> None:
+        if ctx.author.voice.channel != ctx.voice_client.channel:
+            await ctx.send(embed=not_in_same_voice_channel(ctx.author.voice.channel.name))
+            raise commands.CommandError("User not in the same channel as the bot.")
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(self,
+                                    member: discord.Member,
+                                    before: discord.VoiceState,
+                                    after: discord.VoiceState) -> None:
+        if member == self._bot.user and after.channel is None:
+            await self._stop_music_player(before.channel.guild.id)
+
     @tasks.loop(seconds=NO_USERS_DISCONNECT_TIMEOUT)
     async def check_listeners(self) -> None:
         for guild_id, music_player in self._servers_music_players.copy().items():
@@ -88,11 +103,10 @@ class MusicCog(commands.Cog):
                 await self._stop_music_player(guild_id)
 
     @tasks.loop(seconds=NO_MUSIC_DISCONNECT_TIMEOUT)
-    async def check_music(self) -> None:
+    async def monitor_music_player_status(self) -> None:
         for guild_id, music_player in self._servers_music_players.copy().items():
             if not music_player.now_playing and not await music_player.queue_length():
                 await self._stop_music_player(guild_id)
-
 
     @play.before_invoke
     async def connect_on_command(self, ctx: commands.Context) -> None:
@@ -103,14 +117,7 @@ class MusicCog(commands.Cog):
             voice_client = await ctx.author.voice.channel.connect()
             self._servers_music_players[ctx.guild.id] = MusicPlayer(voice_client,
                                                                     BgDownloadSongQueue(self._song_downloader))
-
-    @commands.Cog.listener()
-    async def on_voice_state_update(self,
-                                    member: discord.Member,
-                                    before: discord.VoiceState,
-                                    after: discord.VoiceState) -> None:
-        if member == self._bot.user and after.channel is None:
-            await self._stop_music_player(before.channel.guild.id)
+        await self._is_on_same_channel(ctx)
 
     @skip.before_invoke
     @stop.before_invoke
@@ -123,3 +130,4 @@ class MusicCog(commands.Cog):
         if ctx.guild.id not in self._servers_music_players:
             await ctx.send(embed=not_connected())
             raise commands.CommandError("Bot not connected to a voice channel.")
+        await self._is_on_same_channel(ctx)
