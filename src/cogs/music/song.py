@@ -9,6 +9,7 @@ class Song:
     url: str
     duration: int
     thumbnail: Optional[str]
+    expires_at: Optional[int]
     _stream_url: Optional[str]
 
     _ffmpeg_options = {

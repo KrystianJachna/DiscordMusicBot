@@ -34,7 +34,6 @@ class YtDlpLogger:
 
 
 class SongDownloader:
-
     class NoResultsFoundException(Exception):
 
         def __init__(self, query: str) -> None:
@@ -104,6 +103,10 @@ class SongDownloader:
                     url=url,
                     duration=info['duration'],
                     thumbnail=info['thumbnails'][0]['url'],
+                    expires_at=(
+                        int(info['url'].split("expire=")[1].split("&")[0])
+                        if "expire=" in info['url'] else None
+                    ),
                     _stream_url=info['url'])
 
     def _get_url(self, query: str) -> str:
