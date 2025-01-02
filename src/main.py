@@ -50,7 +50,7 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
 async def main() -> None:
     try:
         token = load_token()
-        setup_logging(logging.DEBUG, enable_file_logging=True)  # TODO: Change to INFO for production
+        setup_logging(logging.INFO, enable_file_logging=True)
         async with bot:
             await bot.add_cog(MusicCog(bot))
             await bot.start(token)
