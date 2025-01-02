@@ -1,7 +1,9 @@
+
 # Discord Music Bot
 
-This is a simple discord bot that can be mainly used to play music in a voice channel.
-It uses the discord.py library and the youtube-dl library to stream music from youtube.
+A simple Discord bot for playing music in a voice channel using the `discord.py` and `youtube-dl` libraries.
+
+---
 
 ## Features
 
@@ -12,8 +14,9 @@ It uses the discord.py library and the youtube-dl library to stream music from y
 
 ## How to use
 
-The bot can be easily run using Docker.
-Follow the instructions below to set up and start the bot in a container.
+The bot can be easily run using Docker. Follow the instructions below to set up and start the bot in a container.
+
+---
 
 ## Requirements
 
@@ -21,7 +24,9 @@ Follow the instructions below to set up and start the bot in a container.
 - [Discord Account](https://discord.com/)
 - [Discord Bot Token](https://discord.com/developers/applications)
 
-## Setting up the Token
+---
+
+## Setting up the Discord Bot Token
 
 1. Go to the [Discord Developer Portal](https://discord.com/developers/applications)
 2. Create a new application
@@ -33,7 +38,11 @@ For more information on how to create a bot and get the token, check
 the [Discord Developer Documentation](https://discord.com/developers/docs/intro)
 or follow this [tutorial](https://realpython.com/how-to-make-a-discord-bot-python/).
 
+---
+
 ## Installation
+
+### Steps:
 
 1. Clone the repository
 
@@ -41,53 +50,71 @@ or follow this [tutorial](https://realpython.com/how-to-make-a-discord-bot-pytho
 git clone <repo-url>
 ```
 
-2. Navigate to the project directory
+2. Navigate to the downloaded project directory:
 
 ```bash
 cd DiscordMusicBot
 ```
 
-3. Build the docker image
+3. Build the Docker image:
 
 ```bash
 docker build -t discord-music-bot .
 ```
 
-4. Run the docker container with the token of your discord bot
+4. Run the Docker container. Provide your Discord bot token as an environment variable:
 
 ```bash
-docker run -e DISCORD_TOKEN=<your-token> discord-music-bot
+docker run -e DISCORD_TOKEN=<your token> discord-music-bot
 ```
+
+* Optionally, you can mount the `bot.log` file to the host system to keep track of the bot's activity:
+
+```bash
+docker run -e DISCORD_TOKEN=<your token> -v $(pwd)/bot.log:/app/bot.log discord-music-bot
+```
+
+---
 
 ## Usage
 
-Once the bot is running, you can invite it to your server by using link generated in
-the [Discord Developer Portal](https://discord.com/developers/applications).
+Once the bot is running, invite it to your server using the link generated in the
+[Discord Developer Portal](https://discord.com/developers/applications):
 
-1. Go to the OAuth2 section
-2. Select the bot scope and permissions (in this case you need to select the `bot` scope and the `Administrator`
-   permission)
-3. Copy the generated link and paste it in your browser
-4. Select the server where you want to invite the bot
-5. Start using the bot in the server
+1. Open the **OAuth2** section.
+2. Select the `bot` scope and set the required permissions (e.g., `Administrator`).
+3. Copy the generated link and open it in your browser.
+4. Choose the server to which you want to add the bot.
+5. Start interacting with the bot in your server!
+
+---
 
 ## Commands
 
-The bot has the following commands:
+Here are the available commands:
 
-- `!help`: Display the list of commands and instructions on how to use them
-- `!play <song>`: Play a song in the voice channel (you can use the name of the song or the youtube link)
-- `!pause`: Pause the current song
-- `!resume`: Resume the current song
-- `!skip`: Skip the current song
-- `!stop`: Stop the music and leave the voice channel
-- `!queue`: Display the queue of songs
-- `!clear`: Clear the queue of songs
-- `!loop`: Toggle the loop mode on/off for whole queue
+- **General Commands**:
+    - `!help`: Display the list of commands and instructions on how to use them.
 
-## Handling Age-Restricted Content on YouTube
+- **Music Playback**:
+    - `!play <song>`: Play a song in the voice channel (use the name or YouTube link).
+    - `!pause`: Pause the current song.
+    - `!resume`: Resume the current song.
+    - `!skip`: Skip the current song.
+    - `!stop`: Stop the music and leave the voice channel.
 
-To allow the bot to play age-restricted content from YouTube, follow these steps:
+- **Queue Management**:
+    - `!queue`: Display the current queue of songs.
+    - `!clear`: Clear the queue of songs.
+
+- **Other**:
+    - `!loop`: Toggle the loop mode for the entire queue (on/off).
+
+---
+
+## Handling Age-Restricted YouTube Content
+
+To allow the bot to play age-restricted YouTube content, follow these steps:
 
 1. **Install a browser extension for generating a `cookies.txt` file**  
    For example, you can use [cookies.txt](https://addons.mozilla.org/pl/firefox/addon/cookies-txt/) (available for
@@ -99,12 +126,14 @@ To allow the bot to play age-restricted content from YouTube, follow these steps
     - Open YouTube in your browser.
     - Use the installed extension to generate a `cookies.txt` file and save it locally on your system.
 
-4. **Add the `cookies.txt` file to the bot's working directory**.
-5.
-5. **Restart the bot**
+4. **Place the `cookies.txt` file in the bot's working directory**.
+
+5. **Restart the bot**.
 
 After following these steps, the bot will be able to play YouTube videos with age restrictions.
 
+---
+
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for more details.
