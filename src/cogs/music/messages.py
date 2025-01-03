@@ -45,7 +45,7 @@ def download_error(query: str) -> Embed:
 
 def no_results(query: str) -> Embed:
     message = Embed(title="🔍 No Results Found",
-                    description=f"We couldn't find any results for: *{query}*\n\n",
+                    description=f"We couldn't find any results for: *\"{query}\"*\n\n",
                     color=ERROR_COLOR)
     message.set_footer(text="💡Tip: Try using different keywords or check your spelling")
     return message
@@ -53,7 +53,7 @@ def no_results(query: str) -> Embed:
 
 def live_stream(query: str) -> Embed:
     message = Embed(title="🎥 Live Stream",
-                    description=f"Found a live stream for: *{query}*\n"
+                    description=f"Found a live stream for: *\"{query}\"*\n"
                                 f"We currently do not support live streams",
                     color=ERROR_COLOR)
     message.set_footer(text="💡Tip: Try using different keywords or search for a different song")
@@ -62,7 +62,7 @@ def live_stream(query: str) -> Embed:
 
 def age_restricted(query: str) -> Embed:
     message = Embed(title=" 🔞 Age Restricted Content",
-                    description=f"The song: *{query}* is age restricted. "
+                    description=f"The song: *\"{query}\"* is age restricted. "
                                 "Please provide a `cookies.txt` file in the root directory to play the song\n\n"
                                 "See `README.md` for details",
                     color=ERROR_COLOR)
