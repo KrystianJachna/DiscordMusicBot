@@ -99,6 +99,8 @@ class BgDownloadSongQueue(SongQueue):
                     self._downloaded_songs.put_nowait(song)
                 except SongDownloader.AgeRestrictedException:
                     await ctx.send(embed=age_restricted(query))
+                except SongDownloader.PlaylistFoundException:
+                    await ctx.send(embed=playlist_error(query))
                 except SongDownloader.NoResultsFoundException:
                     await ctx.send(embed=no_results(query))
                 except SongDownloader.LiveFoundException:

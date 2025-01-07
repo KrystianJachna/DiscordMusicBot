@@ -160,3 +160,12 @@ def not_in_same_voice_channel(bot_channel: str) -> Embed:
     return Embed(title="⛔ Not in the Same Voice Channel",
                  description=f"You must be in the same voice channel as the bot: **{bot_channel}**",
                  color=ERROR_COLOR)
+
+
+def playlist_error(query: str) -> Embed:
+    message = Embed(title="📋 Playlist Found",
+                    description=f"Found a playlist for: *\"{query}\"*\n"
+                                f"We currently do not support playlists",
+                    color=ERROR_COLOR)
+    message.set_footer(text="💡Tip: Provide a direct link to a song or search for a different song")
+    return message

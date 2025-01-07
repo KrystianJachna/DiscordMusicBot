@@ -49,6 +49,11 @@ class SongDownloader:
         def __init__(self, query: str) -> None:
             super().__init__(f"Age restricted song found for: {query}\nPlease try a different search query")
 
+    class PlaylistFoundException(Exception):
+
+        def __init__(self, query: str) -> None:
+            super().__init__(f"Playlist found for: {query}\nPlease try a different search query")
+
     def __init__(self, song_cache: SongsCache, cookies_path: Optional[Path]):
         self._youtube_regex = re.compile(
             r"https?://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)([\w\-_]*)(&(amp;)?‌​[\w?‌​=]*)?"
@@ -93,6 +98,8 @@ class SongDownloader:
                 error_msg = str(e)
                 if "Sign in to confirm your age" in error_msg:
                     raise SongDownloader.AgeRestrictedException(query)
+                if "Playlists" in error_msg:
+                    raise SongDownloader.PlaylistFoundException(query)
                 logging.debug(format_exc())
                 raise SongDownloader.NoResultsFoundException(query)
 
