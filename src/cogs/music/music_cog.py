@@ -1,11 +1,11 @@
 import discord
 from discord.ext import commands, tasks
 
-from .music.messages import *
-from .music.music_service import MusicPlayer
-from .music.song_queue import BgDownloadSongQueue
-from .music.song_cache import LRUSongsCache
-from .music.music_downlaoder import SongDownloader
+from cogs.music.messages import *
+from cogs.music.music_service import MusicPlayer
+from cogs.music.song_queue import BgDownloadSongQueue
+from cogs.music.song_cache import LRUSongsCache
+from cogs.music.music_downlaoder import SongDownloader
 from config import *
 
 

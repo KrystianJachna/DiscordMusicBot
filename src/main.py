@@ -5,7 +5,7 @@ import discord
 from discord.ext import commands
 import logging
 from utils import load_token, setup_logging
-from cogs.music_cog import MusicCog
+from cogs.music.music_cog import MusicCog
 from help_message import HelpMessage
 from config import *
 
