@@ -147,8 +147,6 @@ class SongDownloader:
                 error_msg = str(e)
                 if "Sign in to confirm your age" in error_msg:
                     raise AgeRestrictedException(query)
-                if "Playlists" in error_msg:
-                    raise PlaylistFoundException(query)
                 logging.debug(format_exc())
                 raise NoResultsFoundException(query)
 
@@ -167,10 +165,9 @@ class SongDownloader:
 
     def _get_url(self, query: str) -> str:
         if self._youtube_regex.match(query):
-            logging.debug(f"_get_url: direct url found for: {query}")
+            if "list=" in query:
+                raise PlaylistFoundException(query)
             return query
         search = YoutubeSearch(query, max_results=1).to_dict()
-        if not search:
-            logging.debug(f"_get_url: No results found for: {query}")
-            raise NoResultsFoundException(query)
+        if not search: raise NoResultsFoundException(query)
         return f"https://www.youtube.com/watch?v={search[0]['id']}"
