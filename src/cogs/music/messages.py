@@ -43,33 +43,6 @@ def download_error(query: str) -> Embed:
                  color=ERROR_COLOR)
 
 
-def no_results(query: str) -> Embed:
-    message = Embed(title="🔍 No Results Found",
-                    description=f"We couldn't find any results for: *\"{query}\"*\n\n",
-                    color=ERROR_COLOR)
-    message.set_footer(text="💡Tip: Try using different keywords or check your spelling")
-    return message
-
-
-def live_stream(query: str) -> Embed:
-    message = Embed(title="🎥 Live Stream",
-                    description=f"Found a live stream for: *\"{query}\"*\n"
-                                f"We currently do not support live streams",
-                    color=ERROR_COLOR)
-    message.set_footer(text="💡Tip: Try using different keywords or search for a different song")
-    return message
-
-
-def age_restricted(query: str) -> Embed:
-    message = Embed(title=" 🔞 Age Restricted Content",
-                    description=f"The song: *\"{query}\"* is age restricted. "
-                                "Please provide a `cookies.txt` file in the root directory to play the song\n\n"
-                                "See `README.md` for details",
-                    color=ERROR_COLOR)
-    message.set_footer(text="💡Tip: Search for a different song")
-    return message
-
-
 def skip_error() -> Embed:
     return Embed(title="⛔ Skip Error",
                  description="There is no song currently playing",
@@ -160,12 +133,3 @@ def not_in_same_voice_channel(bot_channel: str) -> Embed:
     return Embed(title="⛔ Not in the Same Voice Channel",
                  description=f"You must be in the same voice channel as the bot: **{bot_channel}**",
                  color=ERROR_COLOR)
-
-
-def playlist_error(query: str) -> Embed:
-    message = Embed(title="📋 Playlist Found",
-                    description=f"Found a playlist for: *\"{query}\"*\n"
-                                f"We currently do not support playlists",
-                    color=ERROR_COLOR)
-    message.set_footer(text="💡Tip: Provide a direct link to a song or search for a different song")
-    return message

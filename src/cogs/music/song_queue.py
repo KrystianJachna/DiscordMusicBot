@@ -7,7 +7,7 @@ from traceback import format_exc
 
 from discord.ext.commands import Context
 from .messages import *
-from .music_downlaoder import SongDownloader
+from .music_downlaoder import SongDownloader, DownloaderException
 
 
 class SongQueue(ABC):
@@ -97,14 +97,8 @@ class BgDownloadSongQueue(SongQueue):
                     song = await self._music_downloader.prepare_song(query)
                     await ctx.send(embed=added_to_queue(song, await self.queue_length()))
                     self._downloaded_songs.put_nowait(song)
-                except SongDownloader.AgeRestrictedException:
-                    await ctx.send(embed=age_restricted(query))
-                except SongDownloader.PlaylistFoundException:
-                    await ctx.send(embed=playlist_error(query))
-                except SongDownloader.NoResultsFoundException:
-                    await ctx.send(embed=no_results(query))
-                except SongDownloader.LiveFoundException:
-                    await ctx.send(embed=live_stream(query))
+                except DownloaderException as e:
+                    await ctx.send(embed=e.embed(query))
                 except Exception as e:
                     if isinstance(e, asyncio.CancelledError): raise e
                     await ctx.send(embed=download_error(query))

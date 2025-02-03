@@ -7,9 +7,11 @@ from typing import Optional
 from youtube_search import YoutubeSearch
 
 import yt_dlp
-from pathlib import Path
-from .song_cache import SongsCache, LRUSongsCache
+from .song_cache import SongsCache
 from .song import Song
+from abc import ABC, abstractmethod
+from discord import Embed
+from config import *
 
 
 class YtDlpLogger:
@@ -33,26 +35,73 @@ class YtDlpLogger:
         logging.error(f"{self._LOG_PREFIX}{msg}")
 
 
+class DownloaderException(Exception, ABC):
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+    @abstractmethod
+    def embed(self, query: str) -> Embed:
+        pass
+
+
+class NoResultsFoundException(DownloaderException):
+
+    def __init__(self, query: str) -> None:
+        super().__init__(f"No results found for: {query}\nPlease try a different search query")
+
+    def embed(self, query: str) -> Embed:
+        message = Embed(title="🔍 No Results Found",
+                        description=f"We couldn't find any results for: *\"{query}\"*\n\n",
+                        color=ERROR_COLOR)
+        message.set_footer(text="💡Tip: Try using different keywords or check your spelling")
+        return message
+
+
+class LiveFoundException(DownloaderException):
+
+    def __init__(self, query: str) -> None:
+        super().__init__(f"Live stream found for: {query}\nPlease try a different search query")
+
+    def embed(self, query: str) -> Embed:
+        message = Embed(title="🎥 Live Stream",
+                        description=f"Found a live stream for: *\"{query}\"*\n"
+                                    f"We currently do not support live streams",
+                        color=ERROR_COLOR)
+        message.set_footer(text="💡Tip: Try using different keywords or search for a different song")
+        return message
+
+
+class AgeRestrictedException(DownloaderException):
+
+    def __init__(self, query: str) -> None:
+        super().__init__(f"Age restricted song found for: {query}\nPlease try a different search query")
+
+    def embed(self, query: str) -> Embed:
+        message = Embed(title=" 🔞 Age Restricted Content",
+                        description=f"The song: *\"{query}\"* is age restricted. "
+                                    "Please provide a `cookies.txt` file in the root directory to play the song\n\n"
+                                    "See `README.md` for details",
+                        color=ERROR_COLOR)
+        message.set_footer(text="💡Tip: Search for a different song")
+        return message
+
+
+class PlaylistFoundException(DownloaderException):
+
+    def __init__(self, query: str) -> None:
+        super().__init__(f"Playlist found for: {query}\nPlease try a different search query")
+
+    def embed(self, query: str) -> Embed:
+        message = Embed(title="📋 Playlist Found",
+                        description=f"Found a playlist for: *\"{query}\"*\n"
+                                    f"We currently do not support playlists",
+                        color=ERROR_COLOR)
+        message.set_footer(text="💡Tip: Provide a direct link to a song or search for a different song")
+        return message
+
+
 class SongDownloader:
-    class NoResultsFoundException(Exception):
-
-        def __init__(self, query: str) -> None:
-            super().__init__(f"No results found for: {query}\nPlease try a different search query")
-
-    class LiveFoundException(Exception):
-
-        def __init__(self, query: str) -> None:
-            super().__init__(f"Live stream found for: {query}\nPlease try a different search query")
-
-    class AgeRestrictedException(Exception):
-
-        def __init__(self, query: str) -> None:
-            super().__init__(f"Age restricted song found for: {query}\nPlease try a different search query")
-
-    class PlaylistFoundException(Exception):
-
-        def __init__(self, query: str) -> None:
-            super().__init__(f"Playlist found for: {query}\nPlease try a different search query")
 
     def __init__(self, song_cache: SongsCache, cookies_path: Optional[Path]):
         self._youtube_regex = re.compile(
@@ -97,14 +146,14 @@ class SongDownloader:
             except yt_dlp.utils.DownloadError as e:
                 error_msg = str(e)
                 if "Sign in to confirm your age" in error_msg:
-                    raise SongDownloader.AgeRestrictedException(query)
+                    raise AgeRestrictedException(query)
                 if "Playlists" in error_msg:
-                    raise SongDownloader.PlaylistFoundException(query)
+                    raise PlaylistFoundException(query)
                 logging.debug(format_exc())
-                raise SongDownloader.NoResultsFoundException(query)
+                raise NoResultsFoundException(query)
 
         if info.get('is_live', False):
-            raise SongDownloader.LiveFoundException(query)
+            raise LiveFoundException(query)
 
         return Song(title=info['title'],
                     url=url,
@@ -123,5 +172,5 @@ class SongDownloader:
         search = YoutubeSearch(query, max_results=1).to_dict()
         if not search:
             logging.debug(f"_get_url: No results found for: {query}")
-            raise SongDownloader.NoResultsFoundException(query)
+            raise NoResultsFoundException(query)
         return f"https://www.youtube.com/watch?v={search[0]['id']}"
