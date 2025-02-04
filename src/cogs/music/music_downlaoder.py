@@ -8,10 +8,11 @@ from youtube_search import YoutubeSearch
 
 import yt_dlp
 from .song_cache import SongsCache
-from .song import Song
+from .song import Song, SongRequest, PlaylistRequest
 from abc import ABC, abstractmethod
 from discord import Embed
 from config import *
+from discord.ext import commands
 
 
 class YtDlpLogger:
@@ -107,6 +108,9 @@ class SongDownloader:
         self._youtube_regex = re.compile(
             r"https?://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)([\w\-_]*)(&(amp;)?‌​[\w?‌​=]*)?"
         )
+        self._youtube_playlist_regex = re.compile(
+            r"(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:playlist\?list=|watch\?.*?list=))(.*?)(?:&|$)"
+        )
         self._yt_dlp_opts = {
             'format': 'bestaudio/best',
             'quiet': False,
@@ -147,8 +151,6 @@ class SongDownloader:
                 error_msg = str(e)
                 if "Sign in to confirm your age" in error_msg:
                     raise AgeRestrictedException(query)
-                if "Playlists" in error_msg:
-                    raise PlaylistFoundException(query)
                 logging.debug(format_exc())
                 raise NoResultsFoundException(query)
 
@@ -166,11 +168,86 @@ class SongDownloader:
                     _stream_url=info['url'])
 
     def _get_url(self, query: str) -> str:
+        if self._youtube_playlist_regex.match(query):
+            raise PlaylistFoundException(query)
         if self._youtube_regex.match(query):
-            logging.debug(f"_get_url: direct url found for: {query}")
             return query
         search = YoutubeSearch(query, max_results=1).to_dict()
-        if not search:
-            logging.debug(f"_get_url: No results found for: {query}")
-            raise NoResultsFoundException(query)
+        if not search: raise NoResultsFoundException(query)
         return f"https://www.youtube.com/watch?v={search[0]['id']}"
+
+
+class PlaylistExtractor:
+
+    def __init__(self, url):
+        self._playlist_id_regex = re.compile(r"(?:https?:\/\/)?(?:www\.)?youtube\.com\/.*?list=([a-zA-Z0-9_-]+)")
+        self._index_regex = re.compile(r"index=(\d+)")
+        self._ydl_opts = {
+            'extract_flat': True,
+            'quiet': True,
+            'logger': YtDlpLogger(),
+        }
+
+        self._index = self._extract_index(url)
+        self._playlist_url = self._get_playlist_url(url)
+
+    async def get_playlist_requests(self, ctx: commands.Context) -> PlaylistRequest:
+        with yt_dlp.YoutubeDL(self._ydl_opts) as ydl:
+            try:
+                playlist_info = ydl.extract_info(self._playlist_url, download=False)
+            except yt_dlp.utils.DownloadError as e:
+                logging.debug(format_exc())
+                raise PlaylistNotFoundError(self._playlist_url)
+
+        return PlaylistRequest(title=playlist_info['title'],
+                               thumbnail=playlist_info['thumbnails'][0]['url'],
+                               total_duration=self._calculate_duration(playlist_info['entries']),
+                               length=len(playlist_info['entries']),
+                               songs=self._get_song_requests(playlist_info['entries'], ctx),
+                               playlist_url=self._playlist_url)
+
+    @staticmethod
+    def _calculate_duration(entries: list[dict]) -> int:
+        return sum(video['duration'] for video in entries if video["duration"])
+
+    def _get_song_requests(self, entries: list[dict], ctx: commands.Context) -> list[SongRequest]:
+        requests = [SongRequest(query=video['url'], ctx=ctx, quiet=True, _title=video['title']) for video in entries]
+        if self._index is not None:
+            requests = requests[self._index:] + requests[:self._index]
+        return requests
+
+    def _get_playlist_url(self, url: str) -> str:
+        match = self._playlist_id_regex.search(url)
+        if not match:
+            raise PlaylistNotFoundError(url)
+        return f"https://www.youtube.com/playlist?list={match.group(1)}"
+
+    def _extract_index(self, url: str) -> Optional[int]:
+        match = self._index_regex.search(url)
+        return int(match.group(1)) + 1 if match else None
+
+
+class PlaylistNotFoundError(DownloaderException):
+
+    def __init__(self, url: str) -> None:
+        super().__init__(f"Playlist not found for: {url}\nPlease try a different search query")
+
+    def embed(self, url: str) -> Embed:
+        message = Embed(title="📋 Playlist Not Found",
+                        description=f"We couldn't find any playlist for: *\"{url}\"*\n\n",
+                        color=ERROR_COLOR)
+        message.set_footer(text="💡Tip: Check the playlist link and try again")
+        return message
+
+
+class PlaylistInfoExtractorError(DownloaderException):
+
+    def __init__(self, url: str) -> None:
+        super().__init__(f"An error occurred while extracting playlist info for: {url}")
+
+    def embed(self, url: str) -> Embed:
+        message = Embed(title="⛔ Playlist Info Error",
+                        description=f"An error occurred while extracting playlist info for: *\"{url}\"*\n\n",
+                        color=ERROR_COLOR)
+        message.set_footer(text="💡Tip: Search for a different playlist")
+        return message

@@ -1,6 +1,7 @@
 from typing import Optional
 from dataclasses import dataclass
 from discord import FFmpegPCMAudio
+from discord.ext import commands
 
 
 @dataclass
@@ -21,3 +22,29 @@ class Song:
         # every time get_source is called, the FFPCMAudio object is created
         # it has to be created every time because it is not reusable
         return FFmpegPCMAudio(self._stream_url, **self._ffmpeg_options)
+
+
+@dataclass
+class SongRequest:
+    query: str
+    ctx: commands.Context
+    quiet: bool = False  # whether to send a message after adding the song to the queue
+    _title: Optional[str] = None
+
+    @property
+    def title(self) -> str:
+        return self._title or self.query
+
+    @title.setter
+    def title(self, value: str) -> None:
+        self._title = value
+
+
+@dataclass
+class PlaylistRequest:
+    title: str
+    playlist_url: str
+    thumbnail: str
+    total_duration: int
+    length: int
+    songs: list[SongRequest]

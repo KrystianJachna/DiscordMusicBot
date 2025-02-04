@@ -7,7 +7,7 @@ from cogs.music.song_queue import BgDownloadSongQueue
 from cogs.music.song_cache import LRUSongsCache
 from cogs.music.music_downlaoder import SongDownloader
 from config import *
-
+from .song import SongRequest
 
 class MusicCog(commands.Cog):
 
@@ -22,7 +22,8 @@ class MusicCog(commands.Cog):
     @commands.command(description=PLAY_DESCRIPTION)
     async def play(self, ctx: commands.Context, *, search: str) -> None:
         music_player = self._servers_music_players[ctx.guild.id]
-        await music_player.play(search, ctx)
+        song_request = SongRequest(search, ctx)
+        await music_player.play(song_request)
 
     @commands.command(description=SKIP_DESCRIPTION)
     async def skip(self, ctx: commands.Context) -> None:
