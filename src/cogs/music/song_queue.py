@@ -82,7 +82,7 @@ class BgDownloadSongQueue(SongQueue):
         downloaded_songs = self._downloaded_songs.elements
         downloaded_songs = [song.title for song in downloaded_songs]
         now_processing = [self._now_processing] if self._now_processing else []
-        waiting_queries = [query for query, _ in self._waiting_queries]
+        waiting_queries = [sr.title for sr in self._waiting_queries]
         return downloaded_songs + now_processing + waiting_queries
 
     async def queue_length(self) -> int:
@@ -95,15 +95,18 @@ class BgDownloadSongQueue(SongQueue):
                 self._now_processing = song_request.title
                 try:
                     song = await self._music_downloader.prepare_song(song_request.query)
-                    await song_request.ctx.send(embed=added_to_queue(song, await self.queue_length()))
+                    if not song_request.playlist_elem:
+                        await song_request.ctx.send(embed=added_to_queue(song, await self.queue_length()))
                     self._downloaded_songs.put_nowait(song)
                 # except PlaylistFoundException as e:
                 #     raise e  # TODO: handle playlists
                 except DownloaderException as e:
-                    await song_request.ctx.send(embed=e.embed(song_request.title))
+                    if not song_request.playlist_elem:
+                        await song_request.ctx.send(embed=e.embed(song_request.title))
                 except Exception as e:
                     if isinstance(e, asyncio.CancelledError): raise e
-                    await song_request.ctx.send(embed=download_error(song_request.title))
+                    if not song_request.playlist_elem:
+                        await song_request.ctx.send(embed=download_error(song_request.title))
                     logging.error(e)
                     logging.debug(format_exc())
         except asyncio.CancelledError:

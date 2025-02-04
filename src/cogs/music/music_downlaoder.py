@@ -107,6 +107,9 @@ class SongDownloader:
         self._youtube_regex = re.compile(
             r"https?://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)([\w\-_]*)(&(amp;)?‌​[\w?‌​=]*)?"
         )
+        self._youtube_playlist_regex = re.compile(
+            r"(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:playlist\?list=|watch\?.*?list=))(.*?)(?:&|$)"
+        )
         self._yt_dlp_opts = {
             'format': 'bestaudio/best',
             'quiet': False,
@@ -168,6 +171,8 @@ class SongDownloader:
             if "list=" in query:
                 raise PlaylistFoundException(query)
             return query
+        elif self._youtube_playlist_regex.match(query):
+            raise PlaylistFoundException(query)
         search = YoutubeSearch(query, max_results=1).to_dict()
         if not search: raise NoResultsFoundException(query)
         return f"https://www.youtube.com/watch?v={search[0]['id']}"

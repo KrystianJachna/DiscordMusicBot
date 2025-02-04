@@ -28,6 +28,7 @@ class Song:
 class SongRequest:
     query: str
     ctx: commands.Context
+    playlist_elem: bool = False  # whether to send a message after adding the song to the queue
     _title: Optional[str] = None
 
     @property
