@@ -171,3 +171,7 @@ class SongDownloader:
         search = YoutubeSearch(query, max_results=1).to_dict()
         if not search: raise NoResultsFoundException(query)
         return f"https://www.youtube.com/watch?v={search[0]['id']}"
+
+
+class PlaylistExtractor:
+    pass

@@ -5,9 +5,9 @@ from typing import Optional
 
 from traceback import format_exc
 
-from discord.ext.commands import Context
 from .messages import *
-from .music_downlaoder import SongDownloader, DownloaderException
+from .music_downlaoder import SongDownloader, DownloaderException, PlaylistFoundException
+from .song import SongRequest
 
 
 class SongQueue(ABC):
@@ -20,7 +20,7 @@ class SongQueue(ABC):
         pass
 
     @abstractmethod
-    async def add(self, query: str, ctx: Context) -> None:
+    async def add(self, song_request: SongRequest) -> None:
         pass
 
     @abstractmethod
@@ -58,7 +58,7 @@ class BgDownloadSongQueue(SongQueue):
     def __init__(self, song_downloader: SongDownloader):
         self._music_downloader = song_downloader
         self._downloaded_songs: BgDownloadSongQueue.TrackedAsyncQueue = BgDownloadSongQueue.TrackedAsyncQueue()
-        self._waiting_queries: list[tuple[str, Context]] = []
+        self._waiting_queries: list[SongRequest] = []
         self._now_processing: Optional[str] = None
         self._processing_task: Optional[asyncio.Task] = None
 
@@ -67,8 +67,8 @@ class BgDownloadSongQueue(SongQueue):
             raise SongQueue.EndOfPlaylistException
         return await self._downloaded_songs.get()
 
-    async def add(self, query: str, ctx: Context) -> None:
-        self._waiting_queries.append((query, ctx))
+    async def add(self, song_request: SongRequest) -> None:
+        self._waiting_queries.append(song_request)
         if not self._processing_task:
             self._processing_task = asyncio.create_task(self._process_queue())
 
@@ -91,17 +91,19 @@ class BgDownloadSongQueue(SongQueue):
     async def _process_queue(self) -> None:
         try:
             while self._waiting_queries:
-                query, ctx = self._waiting_queries.pop(0)
-                self._now_processing = query
+                song_request = self._waiting_queries.pop(0)
+                self._now_processing = song_request.title
                 try:
-                    song = await self._music_downloader.prepare_song(query)
-                    await ctx.send(embed=added_to_queue(song, await self.queue_length()))
+                    song = await self._music_downloader.prepare_song(song_request.query)
+                    await song_request.ctx.send(embed=added_to_queue(song, await self.queue_length()))
                     self._downloaded_songs.put_nowait(song)
+                # except PlaylistFoundException as e:
+                #     raise e  # TODO: handle playlists
                 except DownloaderException as e:
-                    await ctx.send(embed=e.embed(query))
+                    await song_request.ctx.send(embed=e.embed(song_request.title))
                 except Exception as e:
                     if isinstance(e, asyncio.CancelledError): raise e
-                    await ctx.send(embed=download_error(query))
+                    await song_request.ctx.send(embed=download_error(song_request.title))
                     logging.error(e)
                     logging.debug(format_exc())
         except asyncio.CancelledError:

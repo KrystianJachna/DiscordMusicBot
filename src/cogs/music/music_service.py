@@ -2,6 +2,7 @@ import asyncio
 import logging
 from typing import Optional
 
+from .song import SongRequest
 from discord import VoiceClient
 from traceback import format_exc
 
@@ -77,8 +78,8 @@ class MusicPlayer:
     async def queue_length(self) -> int:
         return await self._song_queue.queue_length() + (len(self._looped_songs) if self._loop else 0)
 
-    async def play(self, query: str, ctx: Context) -> None:
-        await self._song_queue.add(query, ctx)
+    async def play(self, song_request: SongRequest) -> None:
+        await self._song_queue.add(song_request)
         if not self._processing_queue:
             self._processing_task = asyncio.create_task(self._process_song_queue())
 
