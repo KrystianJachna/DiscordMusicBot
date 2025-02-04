@@ -9,6 +9,7 @@ from .music_downlaoder import Song
 from config import *
 
 PLAY_DESCRIPTION = ("Play a song from youtube or add it to the queue.\n"
+                    "It can also be playlist link or video within a playlist, if so it will add all songs in the playlist.\n"
                     "Usage: `!play <url or search yt query>`")
 SKIP_DESCRIPTION = ("Skip the currently playing song and play the next one in the queue.\n"
                     "Usage: `!skip`")
@@ -38,12 +39,13 @@ def added_to_queue(song: Song, queue_elements: int) -> Embed:
 
 
 def added_playlist_to_queue(playlist: PlaylistRequest, queue_elements: int) -> Embed:
-    message = Embed(title="🎶 Playlist Added to Queue",
+    message = Embed(title="📋 Songs from Playlist Added to Queue",
                     description=f"🔗 [{playlist.title}]({playlist.playlist_url})\n",
                     color=SUCCESS_COLOR)
     message.add_field(name="Total Duration", value=str(timedelta(seconds=playlist.total_duration)))
     message.add_field(name="Number of Songs", value=playlist.length)
     message.set_thumbnail(url=playlist.thumbnail)
+    message.set_footer(text=f"Some songs may be unavailable")
     return message
 
 

@@ -210,9 +210,11 @@ class PlaylistExtractor:
     def _calculate_duration(entries: list[dict]) -> int:
         return sum(video['duration'] for video in entries if video["duration"])
 
-    @staticmethod
-    def _get_song_requests(entries: list[dict], ctx: commands.Context) -> list[SongRequest]:
-        return [SongRequest(query=video['url'], ctx=ctx, quiet=True, _title=video['title']) for video in entries]
+    def _get_song_requests(self, entries: list[dict], ctx: commands.Context) -> list[SongRequest]:
+        requests = [SongRequest(query=video['url'], ctx=ctx, quiet=True, _title=video['title']) for video in entries]
+        if self._index is not None:
+            requests = requests[self._index:] + requests[:self._index]
+        return requests
 
     def _get_playlist_url(self, url: str) -> str:
         match = self._playlist_id_regex.search(url)
@@ -222,7 +224,7 @@ class PlaylistExtractor:
 
     def _extract_index(self, url: str) -> Optional[int]:
         match = self._index_regex.search(url)
-        return int(match.group(1)) - 1 if match else None
+        return int(match.group(1)) + 1 if match else None
 
 
 class PlaylistNotFoundError(DownloaderException):
