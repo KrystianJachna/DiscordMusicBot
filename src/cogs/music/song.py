@@ -28,7 +28,7 @@ class Song:
 class SongRequest:
     query: str
     ctx: commands.Context
-    playlist_elem: bool = False  # whether to send a message after adding the song to the queue
+    quiet: bool = False  # whether to send a message after adding the song to the queue
     _title: Optional[str] = None
 
     @property
@@ -38,3 +38,13 @@ class SongRequest:
     @title.setter
     def title(self, value: str) -> None:
         self._title = value
+
+
+@dataclass
+class PlaylistRequest:
+    title: str
+    playlist_url: str
+    thumbnail: str
+    total_duration: int
+    length: int
+    songs: list[SongRequest]

@@ -6,7 +6,7 @@ from typing import Optional
 from traceback import format_exc
 
 from .messages import *
-from .music_downlaoder import SongDownloader, DownloaderException, PlaylistFoundException
+from .music_downlaoder import SongDownloader, DownloaderException, PlaylistFoundException, PlaylistExtractor
 from .song import SongRequest
 
 
@@ -95,17 +95,20 @@ class BgDownloadSongQueue(SongQueue):
                 self._now_processing = song_request.title
                 try:
                     song = await self._music_downloader.prepare_song(song_request.query)
-                    if not song_request.playlist_elem:
+                    if not song_request.quiet:
                         await song_request.ctx.send(embed=added_to_queue(song, await self.queue_length()))
                     self._downloaded_songs.put_nowait(song)
-                # except PlaylistFoundException as e:
-                #     raise e  # TODO: handle playlists
+                except PlaylistFoundException as e:
+                    playlist_extractor = PlaylistExtractor(song_request.query)
+                    playlist = await playlist_extractor.get_playlist_requests(song_request.ctx)
+                    self._waiting_queries.extend(playlist.songs)
+                    await song_request.ctx.send(embed=added_playlist_to_queue(playlist, await self.queue_length()))
                 except DownloaderException as e:
-                    if not song_request.playlist_elem:
+                    if not song_request.quiet:
                         await song_request.ctx.send(embed=e.embed(song_request.title))
                 except Exception as e:
                     if isinstance(e, asyncio.CancelledError): raise e
-                    if not song_request.playlist_elem:
+                    if not song_request.quiet:
                         await song_request.ctx.send(embed=download_error(song_request.title))
                     logging.error(e)
                     logging.debug(format_exc())

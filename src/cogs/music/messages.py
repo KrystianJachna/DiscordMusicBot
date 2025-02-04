@@ -3,7 +3,7 @@
 from _datetime import timedelta
 
 from discord import Embed
-
+from .song import PlaylistRequest
 from .music_downlaoder import Song
 
 from config import *
@@ -34,6 +34,16 @@ def added_to_queue(song: Song, queue_elements: int) -> Embed:
     message.add_field(name="Duration", value=str(timedelta(seconds=song.duration)))
     message.add_field(name="Queue Length", value=queue_elements)
     message.set_thumbnail(url=song.thumbnail or song.url)
+    return message
+
+
+def added_playlist_to_queue(playlist: PlaylistRequest, queue_elements: int) -> Embed:
+    message = Embed(title="🎶 Playlist Added to Queue",
+                    description=f"🔗 [{playlist.title}]({playlist.playlist_url})\n",
+                    color=SUCCESS_COLOR)
+    message.add_field(name="Total Duration", value=str(timedelta(seconds=playlist.total_duration)))
+    message.add_field(name="Number of Songs", value=playlist.length)
+    message.set_thumbnail(url=playlist.thumbnail)
     return message
 
 
@@ -93,7 +103,8 @@ def queue(now_playing: Song, coming_next: list[str], looping_enabled: bool) -> E
         message = Embed(title="🎵 Music Queue",
                         description=now_playing,
                         color=SUCCESS_COLOR)
-        waiting_in_queue = "- " + "\n- ".join(coming_next) if coming_next else "No songs in queue"
+        waiting_in_queue = "- " + "\n- ".join(coming_next[:10]) if coming_next else "No songs in queue"
+        waiting_in_queue += f"\n**{len(coming_next)} more songs in queue**" if len(coming_next) > 10 else ""
         message.add_field(name="Coming Next:", value=waiting_in_queue)
     else:
         message = Embed(title="🎵 Music Queue",
