@@ -1,5 +1,4 @@
 import asyncio
-from traceback import format_exc
 
 import discord
 from discord.ext import commands
@@ -41,10 +40,8 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
         await ctx.send(embed=discord.Embed(title=f"🤔 Oops! You’re missing something!",
                                            description=f"Type `!help {ctx.command.name}` for more information",
                                            color=ERROR_COLOR))
-    else:  # error occurred in the command code
-        logging.error(f"Error occurred in command: {ctx.command}")
-        logging.error(error)
-        logging.debug(format_exc() if format_exc() != "NoneType: None\n" else "No traceback available")
+    else:
+        logging.error(f"Error occurred in command: {ctx.command}", exc_info=True)
 
 
 async def main() -> None:
@@ -57,8 +54,7 @@ async def main() -> None:
     except discord.LoginFailure:
         logging.error("Failed to log in. Ensure the token is correct.")
     except Exception as e:
-        logging.error(e)
-        logging.debug(format_exc())
+        logging.error(e, exc_info=True)
 
 
 if __name__ == '__main__':

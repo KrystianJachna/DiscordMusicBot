@@ -28,16 +28,8 @@ class Song:
 class SongRequest:
     query: str
     ctx: commands.Context
+    title: Optional[str] = None
     quiet: bool = False  # whether to send a message after adding the song to the queue
-    _title: Optional[str] = None
-
-    @property
-    def title(self) -> str:
-        return self._title or self.query
-
-    @title.setter
-    def title(self, value: str) -> None:
-        self._title = value
 
 
 @dataclass

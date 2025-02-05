@@ -6,11 +6,8 @@ from dotenv import load_dotenv
 
 
 def load_token() -> str:
-    token = getenv("DISCORD_TOKEN")  # Check if the token is set in the Docker environment
-
-    if not token:  # If the token is not set in the Docker environment, check the .env file
-        load_dotenv()
-        token = getenv("DISCORD_TOKEN")
+    load_dotenv()
+    token = getenv("DISCORD_TOKEN")
 
     if not token:
         raise Exception("Failed to load token. "

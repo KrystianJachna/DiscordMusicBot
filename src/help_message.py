@@ -5,9 +5,8 @@ from config import INFO_COLOR
 
 class HelpMessage(commands.HelpCommand):
 
-    def __init__(self, color: int = INFO_COLOR):
+    def __init__(self):
         super().__init__()
-        self._color = color
 
     async def send_bot_help(self, mapping: dict) -> None:
         desc = """
@@ -24,7 +23,7 @@ class HelpMessage(commands.HelpCommand):
         **The available commands are:**
         """
 
-        embed = Embed(description=desc, color=self._color)
+        embed = Embed(description=desc, color=INFO_COLOR)
         for cog, _commands in mapping.items():
             command_list = [command.name for command in _commands]
             if command_list:
@@ -36,7 +35,7 @@ class HelpMessage(commands.HelpCommand):
 
     async def send_command_help(self, command: commands.Command) -> None:
         embed = Embed(title="!" + command.name, description=command.description or "No description",
-                      color=self._color)
+                      color=INFO_COLOR)
         if command.aliases:
             embed.add_field(name="Aliases", value=", ".join(command.aliases), inline=False)
         channel = self.get_destination()
@@ -44,7 +43,7 @@ class HelpMessage(commands.HelpCommand):
 
     async def send_cog_help(self, cog: commands.Cog) -> None:
         embed = Embed(title=cog.qualified_name,
-                      color=self._color)
+                      color=INFO_COLOR)
         for command in cog.get_commands():
             embed.add_field(name="!" + command.name, value=command.description or "No description", inline=False)
         channel = self.get_destination()
@@ -53,5 +52,5 @@ class HelpMessage(commands.HelpCommand):
     async def command_not_found(self, string: str, /) -> str:
         channel = self.get_destination()
         await channel.send(
-            embed=Embed(title=f"Command: `{string}` not found", color=self._color))
+            embed=Embed(title=f"Command: `{string}` not found", color=INFO_COLOR))
         return ""

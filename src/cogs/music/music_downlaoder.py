@@ -1,7 +1,6 @@
 import asyncio
 import re
 import logging
-from traceback import format_exc
 from typing import Optional
 
 from youtube_search import YoutubeSearch
@@ -36,101 +35,25 @@ class YtDlpLogger:
         logging.error(f"{self._LOG_PREFIX}{msg}")
 
 
-class DownloaderException(Exception, ABC):
-
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
-
-    @abstractmethod
-    def embed(self, query: str) -> Embed:
-        pass
-
-
-class NoResultsFoundException(DownloaderException):
-
-    def __init__(self, query: str) -> None:
-        super().__init__(f"No results found for: {query}\nPlease try a different search query")
-
-    def embed(self, query: str) -> Embed:
-        message = Embed(title="🔍 No Results Found",
-                        description=f"We couldn't find any results for: *\"{query}\"*\n\n",
-                        color=ERROR_COLOR)
-        message.set_footer(text="💡Tip: Try using different keywords or check your spelling")
-        return message
-
-
-class LiveFoundException(DownloaderException):
-
-    def __init__(self, query: str) -> None:
-        super().__init__(f"Live stream found for: {query}\nPlease try a different search query")
-
-    def embed(self, query: str) -> Embed:
-        message = Embed(title="🎥 Live Stream",
-                        description=f"Found a live stream for: *\"{query}\"*\n"
-                                    f"We currently do not support live streams",
-                        color=ERROR_COLOR)
-        message.set_footer(text="💡Tip: Try using different keywords or search for a different song")
-        return message
-
-
-class AgeRestrictedException(DownloaderException):
-
-    def __init__(self, query: str) -> None:
-        super().__init__(f"Age restricted song found for: {query}\nPlease try a different search query")
-
-    def embed(self, query: str) -> Embed:
-        message = Embed(title=" 🔞 Age Restricted Content",
-                        description=f"The song: *\"{query}\"* is age restricted. "
-                                    "Please provide a `cookies.txt` file in the root directory to play the song\n\n"
-                                    "See `README.md` for details",
-                        color=ERROR_COLOR)
-        message.set_footer(text="💡Tip: Search for a different song")
-        return message
-
-
-class PlaylistFoundException(DownloaderException):
-
-    def __init__(self, query: str) -> None:
-        super().__init__(f"Playlist found for: {query}\nPlease try a different search query")
-
-    def embed(self, query: str) -> Embed:
-        message = Embed(title="📋 Playlist Found",
-                        description=f"Found a playlist for: *\"{query}\"*\n"
-                                    f"We currently do not support playlists",
-                        color=ERROR_COLOR)
-        message.set_footer(text="💡Tip: Provide a direct link to a song or search for a different song")
-        return message
-
-
 class SongDownloader:
+    _youtube_regex = re.compile(
+        r"https?://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)([\w\-_]*)(&(amp;)?‌​[\w?‌​=]*)?"
+    )
+    _youtube_playlist_regex = re.compile(
+        r"(?:https?://)?(?:www\.)?youtube\.com/(?:playlist\?list=|watch\?.*?list=)(.*?)(?:&|$)"
+    )
+    _yt_dlp_opts = {
+        'format': 'bestaudio/best',
+        'quiet': False,
+        'match_filter': '!is_live',
+        'logger': YtDlpLogger(),
+    }
 
-    def __init__(self, song_cache: SongsCache, cookies_path: Optional[Path]):
-        self._youtube_regex = re.compile(
-            r"https?://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)([\w\-_]*)(&(amp;)?‌​[\w?‌​=]*)?"
-        )
-        self._youtube_playlist_regex = re.compile(
-            r"(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:playlist\?list=|watch\?.*?list=))(.*?)(?:&|$)"
-        )
-        self._yt_dlp_opts = {
-            'format': 'bestaudio/best',
-            'quiet': False,
-            'match_filter': '!is_live',
-            'logger': YtDlpLogger(),
-        }
-        self._load_cookies(cookies_path)  # cookies are required to be able to download age-restricted songs
+    def __init__(self, song_cache: SongsCache):
+        self._load_cookies(COOKIES_PATH)  # cookies are required to be able to download age-restricted songs
         self._song_cache: SongsCache = song_cache
 
-    async def prepare_song(self, query: str) -> Song:
-        if query in self._song_cache:
-            logging.debug(f"prepare_song: song found in cache for: {query}")
-            return self._song_cache[query]
-        song = await asyncio.to_thread(self._construct_song, query)
-        self._song_cache[query] = song
-        return song
-
     def _load_cookies(self, cookies_path: Path) -> None:
-        if not cookies_path:
-            return
         if cookies_path.exists():
             logging.info(f"Cookies file loaded from {str(cookies_path)}")
             self._yt_dlp_opts['cookiefile'] = str(cookies_path)
@@ -139,19 +62,23 @@ class SongDownloader:
                          "Create a cookies.txt file in the root directory for age-restricted songs. "
                          "See README.md for details.")
 
+    async def prepare_song(self, query: str) -> Song:
+        if query in self._song_cache:
+            return self._song_cache[query]
+        song = await asyncio.to_thread(self._construct_song, query)
+        self._song_cache[query] = song
+        return song
+
     def _construct_song(self, query: str) -> Song:
         url = self._get_url(query)
         if url in self._song_cache:
-            logging.debug(f"_construct_song: song found in cache for: {query}")
             return self._song_cache[url]
         with yt_dlp.YoutubeDL(self._yt_dlp_opts) as ydl:
             try:
                 info = ydl.extract_info(url, download=False)
             except yt_dlp.utils.DownloadError as e:
-                error_msg = str(e)
-                if "Sign in to confirm your age" in error_msg:
+                if "Sign in to confirm your age" in str(e):
                     raise AgeRestrictedException(query)
-                logging.debug(format_exc())
                 raise NoResultsFoundException(query)
 
         if info.get('is_live', False):
@@ -180,7 +107,7 @@ class SongDownloader:
 class PlaylistExtractor:
 
     def __init__(self, url):
-        self._playlist_id_regex = re.compile(r"(?:https?:\/\/)?(?:www\.)?youtube\.com\/.*?list=([a-zA-Z0-9_-]+)")
+        self._playlist_id_regex = re.compile(r"(?:https?://)?(?:www\.)?youtube\.com/.*?list=([a-zA-Z0-9_-]+)")
         self._index_regex = re.compile(r"index=(\d+)")
         self._ydl_opts = {
             'extract_flat': True,
@@ -195,8 +122,7 @@ class PlaylistExtractor:
         with yt_dlp.YoutubeDL(self._ydl_opts) as ydl:
             try:
                 playlist_info = ydl.extract_info(self._playlist_url, download=False)
-            except yt_dlp.utils.DownloadError as e:
-                logging.debug(format_exc())
+            except yt_dlp.utils.DownloadError:
                 raise PlaylistNotFoundError(self._playlist_url)
 
         return PlaylistRequest(title=playlist_info['title'],
@@ -211,7 +137,7 @@ class PlaylistExtractor:
         return sum(video['duration'] for video in entries if video["duration"])
 
     def _get_song_requests(self, entries: list[dict], ctx: commands.Context) -> list[SongRequest]:
-        requests = [SongRequest(query=video['url'], ctx=ctx, quiet=True, _title=video['title']) for video in entries]
+        requests = [SongRequest(query=video['url'], ctx=ctx, quiet=True, title=video['title']) for video in entries]
         if self._index is not None:
             requests = requests[self._index:] + requests[:self._index]
         return requests
@@ -227,11 +153,63 @@ class PlaylistExtractor:
         return int(match.group(1)) + 1 if match else None
 
 
+class DownloaderException(Exception, ABC):
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+    @staticmethod
+    @abstractmethod
+    def embed(self, query: str) -> Embed:
+        pass
+
+
+class NoResultsFoundException(DownloaderException):
+    @staticmethod
+    def embed(self, query: str) -> Embed:
+        message = Embed(title="🔍 No Results Found",
+                        description=f"We couldn't find any results for: *\"{query}\"*\n\n",
+                        color=ERROR_COLOR)
+        message.set_footer(text="💡Tip: Try using different keywords or check your spelling")
+        return message
+
+
+class LiveFoundException(DownloaderException):
+    @staticmethod
+    def embed(self, query: str) -> Embed:
+        message = Embed(title="🎥 Live Stream",
+                        description=f"Found a live stream for: *\"{query}\"*\n"
+                                    f"We currently do not support live streams",
+                        color=ERROR_COLOR)
+        message.set_footer(text="💡Tip: Try using different keywords or search for a different song")
+        return message
+
+
+class AgeRestrictedException(DownloaderException):
+    @staticmethod
+    def embed(self, query: str) -> Embed:
+        message = Embed(title=" 🔞 Age Restricted Content",
+                        description=f"The song: *\"{query}\"* is age restricted. "
+                                    "Please provide a `cookies.txt` file in the root directory to play the song\n\n"
+                                    "See `README.md` for details",
+                        color=ERROR_COLOR)
+        message.set_footer(text="💡Tip: Search for a different song")
+        return message
+
+
+class PlaylistFoundException(DownloaderException):
+    @staticmethod
+    def embed(self, query: str) -> Embed:
+        message = Embed(title="📋 Playlist Found",
+                        description=f"Found a playlist for: *\"{query}\"*\n"
+                                    f"We currently do not support playlists",
+                        color=ERROR_COLOR)
+        message.set_footer(text="💡Tip: Provide a direct link to a song or search for a different song")
+        return message
+
+
 class PlaylistNotFoundError(DownloaderException):
-
-    def __init__(self, url: str) -> None:
-        super().__init__(f"Playlist not found for: {url}\nPlease try a different search query")
-
+    @staticmethod
     def embed(self, url: str) -> Embed:
         message = Embed(title="📋 Playlist Not Found",
                         description=f"We couldn't find any playlist for: *\"{url}\"*\n\n",
@@ -241,10 +219,7 @@ class PlaylistNotFoundError(DownloaderException):
 
 
 class PlaylistInfoExtractorError(DownloaderException):
-
-    def __init__(self, url: str) -> None:
-        super().__init__(f"An error occurred while extracting playlist info for: {url}")
-
+    @staticmethod
     def embed(self, url: str) -> Embed:
         message = Embed(title="⛔ Playlist Info Error",
                         description=f"An error occurred while extracting playlist info for: *\"{url}\"*\n\n",

@@ -4,9 +4,7 @@ from typing import Optional
 
 from .song import SongRequest
 from discord import VoiceClient
-from traceback import format_exc
 
-from discord.ext.commands import Context
 from .messages import *
 from .song_queue import SongQueue
 
@@ -100,7 +98,7 @@ class MusicPlayer:
                 await finished.wait()
                 self._now_playing = None
         except asyncio.CancelledError:
-            logging.debug("Processing queue cancelled")
+            pass
         finally:
             self._processing_queue = False
 
@@ -112,6 +110,5 @@ class MusicPlayer:
                 self._looped_songs.append(self._now_playing)
         self._now_playing = None
         if error:
-            logging.error(f"Error playing song: {error}")
-            logging.debug(format_exc())
+            logging.error(f"Error playing song: {error}", exc_info=True)
         finished.set()

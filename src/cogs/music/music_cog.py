@@ -14,8 +14,8 @@ class MusicCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self._bot = bot
         self._servers_music_players: dict[int, MusicPlayer] = {}  # guild_id: MusicPlayer
-        song_cache = LRUSongsCache(songs_size=CACHE_SIZE)
-        self._song_downloader = SongDownloader(song_cache, COOKIES_PATH)
+        self._song_downloader = SongDownloader(LRUSongsCache(CACHE_SIZE, QUERIES_CACHE_SIZE))
+
         self.monitor_music_player_status.start()
         self.check_listeners.start()
 

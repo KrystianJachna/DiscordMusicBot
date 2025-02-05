@@ -8,24 +8,46 @@ from .music_downlaoder import Song
 
 from config import *
 
-PLAY_DESCRIPTION = ("Play a song from youtube or add it to the queue.\n"
-                    "It can also be playlist link or video within a playlist, if so it will add all songs in the playlist.\n"
-                    "Usage: `!play <url or search yt query>`")
-SKIP_DESCRIPTION = ("Skip the currently playing song and play the next one in the queue.\n"
-                    "Usage: `!skip`")
-STOP_DESCRIPTION = ("Stop playback and clear the queue, the bot will leave the voice channel.\n"
-                    "Usage: `!stop`")
-PAUSE_DESCRIPTION = ("Pause the currently playing song, use `!resume` to resume playback.\n"
-                     "Usage: `!pause`")
-RESUME_DESCRIPTION = ("Resume playback of the paused song, if not paused, does nothing.\n"
-                      "Usage: `!resume`")
-LOOP_DESCRIPTION = ("Toggle looping for the current playlist. "
-                    "It prioritizes songs that are being added to the queue, over those that were already played.\n"
-                    "Usage: `!loop` to toggle looping on or off.")
-QUEUE_DESCRIPTION = ("Show the current queue of songs.\n"
-                     "Usage `!queue`")
-CLEAR_DESCRIPTION = ("Clear all songs from the queue. Does not affect the currently playing song.\n"
-                     "Usage: `!clear`")
+PLAY_DESCRIPTION = (
+    "Play a song directly from YouTube or add it to the queue. You can provide a direct video link, a playlist link, or even a search query. "
+    "If a playlist is provided, all songs in the playlist will be added to the queue.\n"
+    "**Usage**: `!play <YouTube URL or search query>`"
+)
+
+SKIP_DESCRIPTION = (
+    "Skip the currently playing song and move to the next one in the queue.\n"
+    "**Usage**: `!skip`"
+)
+
+STOP_DESCRIPTION = (
+    "Stop playback entirely, clear the queue, and disconnect the bot from the voice channel.\n"
+    "**Usage**: `!stop`"
+)
+
+PAUSE_DESCRIPTION = (
+    "Pause the currently playing song. Use `!resume` to continue playback.\n"
+    "**Usage**: `!pause`"
+)
+
+RESUME_DESCRIPTION = (
+    "Resume playback of the paused song. If no song is paused, this command will do nothing.\n"
+    "**Usage**: `!resume`"
+)
+
+LOOP_DESCRIPTION = (
+    "Toggle looping for the current playlist. When enabled, the bot will prioritize newly added songs over previously played ones.\n"
+    "**Usage**: `!loop` to turn looping on or off."
+)
+
+QUEUE_DESCRIPTION = (
+    "Display the current list of songs in the queue.\n"
+    "**Usage**: `!queue`"
+)
+
+CLEAR_DESCRIPTION = (
+    "Clear all songs from the queue. This does not affect the currently playing song.\n"
+    "**Usage**: `!clear`"
+)
 
 
 def added_to_queue(song: Song, queue_elements: int) -> Embed:
@@ -38,7 +60,7 @@ def added_to_queue(song: Song, queue_elements: int) -> Embed:
     return message
 
 
-def added_playlist_to_queue(playlist: PlaylistRequest, queue_elements: int) -> Embed:
+def added_playlist_to_queue(playlist: PlaylistRequest) -> Embed:
     message = Embed(title="📋 Songs from Playlist Added to Queue",
                     description=f"🔗 [{playlist.title}]({playlist.playlist_url})\n",
                     color=SUCCESS_COLOR)

@@ -3,8 +3,6 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from traceback import format_exc
-
 from .messages import *
 from .music_downlaoder import SongDownloader, DownloaderException, PlaylistFoundException, PlaylistExtractor
 from .song import SongRequest
@@ -98,11 +96,11 @@ class BgDownloadSongQueue(SongQueue):
                     if not song_request.quiet:
                         await song_request.ctx.send(embed=added_to_queue(song, await self.queue_length()))
                     self._downloaded_songs.put_nowait(song)
-                except PlaylistFoundException as e:
+                except PlaylistFoundException:
                     playlist_extractor = PlaylistExtractor(song_request.query)
                     playlist = await playlist_extractor.get_playlist_requests(song_request.ctx)
                     self._waiting_queries.extend(playlist.songs)
-                    await song_request.ctx.send(embed=added_playlist_to_queue(playlist, await self.queue_length()))
+                    await song_request.ctx.send(embed=added_playlist_to_queue(playlist))
                 except DownloaderException as e:
                     if not song_request.quiet:
                         await song_request.ctx.send(embed=e.embed(song_request.title))
@@ -110,8 +108,7 @@ class BgDownloadSongQueue(SongQueue):
                     if isinstance(e, asyncio.CancelledError): raise e
                     if not song_request.quiet:
                         await song_request.ctx.send(embed=download_error(song_request.title))
-                    logging.error(e)
-                    logging.debug(format_exc())
+                    logging.error(e, exc_info=True)
         except asyncio.CancelledError:
             pass
         finally:
