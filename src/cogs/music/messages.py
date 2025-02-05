@@ -4,7 +4,7 @@ from _datetime import timedelta
 
 from discord import Embed
 from .song import PlaylistRequest
-from .music_downlaoder import Song
+from .music_downloader import Song
 
 from config import *
 
@@ -49,6 +49,10 @@ CLEAR_DESCRIPTION = (
     "**Usage**: `!clear`"
 )
 
+SHUFFLE_DESCRIPTION = (
+    "Shuffle the songs in the queue.\n"
+    "**Usage**: `!shuffle`"
+)
 
 def added_to_queue(song: Song, queue_elements: int) -> Embed:
     message = Embed(title=" 🎶 Song Added to Queue",
@@ -168,3 +172,9 @@ def not_in_same_voice_channel(bot_channel: str) -> Embed:
     return Embed(title="⛔ Not in the Same Voice Channel",
                  description=f"You must be in the same voice channel as the bot: **{bot_channel}**",
                  color=ERROR_COLOR)
+
+
+def shuffled() -> Embed:
+    return Embed(title="🔀 Queue Shuffled",
+                 description="The queue has been shuffled",
+                 color=SUCCESS_COLOR)
