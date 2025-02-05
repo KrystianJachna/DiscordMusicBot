@@ -71,7 +71,8 @@ def added_playlist_to_queue(playlist: PlaylistRequest) -> Embed:
     message.add_field(name="Total Duration", value=str(timedelta(seconds=playlist.total_duration)))
     message.add_field(name="Number of Songs", value=playlist.length)
     message.set_thumbnail(url=playlist.thumbnail)
-    message.set_footer(text=f"Some songs may be unavailable")
+    message.set_footer(
+        text=f"Some songs may be unavailable, therefore the total duration and number of songs may differ")
     return message
 
 
