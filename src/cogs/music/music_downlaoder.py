@@ -105,16 +105,15 @@ class SongDownloader:
 
 
 class PlaylistExtractor:
+    _playlist_id_regex = re.compile(r"(?:https?://)?(?:www\.)?youtube\.com/.*?list=([a-zA-Z0-9_-]+)")
+    _index_regex = re.compile(r"index=(\d+)")
+    _ydl_opts = {
+        'extract_flat': True,
+        'quiet': True,
+        'logger': YtDlpLogger(),
+    }
 
     def __init__(self, url):
-        self._playlist_id_regex = re.compile(r"(?:https?://)?(?:www\.)?youtube\.com/.*?list=([a-zA-Z0-9_-]+)")
-        self._index_regex = re.compile(r"index=(\d+)")
-        self._ydl_opts = {
-            'extract_flat': True,
-            'quiet': True,
-            'logger': YtDlpLogger(),
-        }
-
         self._index = self._extract_index(url)
         self._playlist_url = self._get_playlist_url(url)
 
