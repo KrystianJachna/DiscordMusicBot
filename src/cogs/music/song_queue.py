@@ -92,13 +92,13 @@ class BgDownloadSongQueue(SongQueue):
                 song_request = self._waiting_queries.pop(0)
                 self._now_processing = song_request.title
                 try:
-                    song = await self._music_downloader.prepare_song(song_request.query)
+                    song = await self._music_downloader.prepare_song(song_request.title)
                     if not song_request.quiet:
                         await song_request.ctx.send(embed=added_to_queue(song, await self.queue_length()))
                     self._downloaded_songs.put_nowait(song)
                 except PlaylistFoundException:
-                    playlist_extractor = PlaylistExtractor(song_request.query)
-                    playlist = await playlist_extractor.get_playlist_requests(song_request.ctx)
+                    playlist_extractor = PlaylistExtractor(song_request.title)
+                    playlist = await playlist_extractor.get_playlist_requests(song_request)
                     self._waiting_queries.extend(playlist.songs)
                     await song_request.ctx.send(embed=added_playlist_to_queue(playlist))
                 except DownloaderException as e:

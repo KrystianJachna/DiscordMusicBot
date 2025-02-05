@@ -11,7 +11,6 @@ from .song import Song, SongRequest, PlaylistRequest
 from abc import ABC, abstractmethod
 from discord import Embed
 from config import *
-from discord.ext import commands
 
 
 class YtDlpLogger:
@@ -117,7 +116,7 @@ class PlaylistExtractor:
         self._index = self._extract_index(url)
         self._playlist_url = self._get_playlist_url(url)
 
-    async def get_playlist_requests(self, ctx: commands.Context) -> PlaylistRequest:
+    async def get_playlist_requests(self, song_request: SongRequest) -> PlaylistRequest:
         with yt_dlp.YoutubeDL(self._ydl_opts) as ydl:
             try:
                 playlist_info = ydl.extract_info(self._playlist_url, download=False)
@@ -128,15 +127,15 @@ class PlaylistExtractor:
                                thumbnail=playlist_info['thumbnails'][0]['url'],
                                total_duration=self._calculate_duration(playlist_info['entries']),
                                length=len(playlist_info['entries']),
-                               songs=self._get_song_requests(playlist_info['entries'], ctx),
+                               songs=self._get_song_requests(playlist_info['entries'], song_request),
                                playlist_url=self._playlist_url)
 
     @staticmethod
     def _calculate_duration(entries: list[dict]) -> int:
         return sum(video['duration'] for video in entries if video["duration"])
 
-    def _get_song_requests(self, entries: list[dict], ctx: commands.Context) -> list[SongRequest]:
-        requests = [SongRequest(query=video['url'], ctx=ctx, quiet=True, title=video['title']) for video in entries]
+    def _get_song_requests(self, entries: list[dict], song_request: SongRequest) -> list[SongRequest]:
+        requests = [SongRequest(video['url'], song_request.ctx, quiet=True, _title=video['title']) for video in entries]
         if self._index is not None:
             requests = requests[self._index:] + requests[:self._index]
         return requests
@@ -159,13 +158,13 @@ class DownloaderException(Exception, ABC):
 
     @staticmethod
     @abstractmethod
-    def embed(self, query: str) -> Embed:
+    def embed(query: str) -> Embed:
         pass
 
 
 class NoResultsFoundException(DownloaderException):
     @staticmethod
-    def embed(self, query: str) -> Embed:
+    def embed(query: str) -> Embed:
         message = Embed(title="🔍 No Results Found",
                         description=f"We couldn't find any results for: *\"{query}\"*\n\n",
                         color=ERROR_COLOR)
@@ -175,7 +174,7 @@ class NoResultsFoundException(DownloaderException):
 
 class LiveFoundException(DownloaderException):
     @staticmethod
-    def embed(self, query: str) -> Embed:
+    def embed(query: str) -> Embed:
         message = Embed(title="🎥 Live Stream",
                         description=f"Found a live stream for: *\"{query}\"*\n"
                                     f"We currently do not support live streams",
@@ -186,7 +185,7 @@ class LiveFoundException(DownloaderException):
 
 class AgeRestrictedException(DownloaderException):
     @staticmethod
-    def embed(self, query: str) -> Embed:
+    def embed(query: str) -> Embed:
         message = Embed(title=" 🔞 Age Restricted Content",
                         description=f"The song: *\"{query}\"* is age restricted. "
                                     "Please provide a `cookies.txt` file in the root directory to play the song\n\n"
@@ -198,7 +197,7 @@ class AgeRestrictedException(DownloaderException):
 
 class PlaylistFoundException(DownloaderException):
     @staticmethod
-    def embed(self, query: str) -> Embed:
+    def embed(query: str) -> Embed:
         message = Embed(title="📋 Playlist Found",
                         description=f"Found a playlist for: *\"{query}\"*\n"
                                     f"We currently do not support playlists",
@@ -209,9 +208,9 @@ class PlaylistFoundException(DownloaderException):
 
 class PlaylistNotFoundError(DownloaderException):
     @staticmethod
-    def embed(self, url: str) -> Embed:
+    def embed(query: str) -> Embed:
         message = Embed(title="📋 Playlist Not Found",
-                        description=f"We couldn't find any playlist for: *\"{url}\"*\n\n",
+                        description=f"We couldn't find any playlist for: *\"{query}\"*\n\n",
                         color=ERROR_COLOR)
         message.set_footer(text="💡Tip: Check the playlist link and try again")
         return message
@@ -219,9 +218,9 @@ class PlaylistNotFoundError(DownloaderException):
 
 class PlaylistInfoExtractorError(DownloaderException):
     @staticmethod
-    def embed(self, url: str) -> Embed:
+    def embed(query: str) -> Embed:
         message = Embed(title="⛔ Playlist Info Error",
-                        description=f"An error occurred while extracting playlist info for: *\"{url}\"*\n\n",
+                        description=f"An error occurred while extracting playlist info for: *\"{query}\"*\n\n",
                         color=ERROR_COLOR)
         message.set_footer(text="💡Tip: Search for a different playlist")
         return message
