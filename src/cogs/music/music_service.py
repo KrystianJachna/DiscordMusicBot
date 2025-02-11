@@ -81,6 +81,9 @@ class MusicPlayer:
         if not self._processing_queue:
             self._processing_task = asyncio.create_task(self._process_song_queue())
 
+    async def shuffle(self) -> None:
+        await self._song_queue.shuffle()
+
     async def _process_song_queue(self) -> None:
         self._processing_queue = True
         try:

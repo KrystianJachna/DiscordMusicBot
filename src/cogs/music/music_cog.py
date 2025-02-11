@@ -5,7 +5,7 @@ from cogs.music.messages import *
 from cogs.music.music_service import MusicPlayer
 from cogs.music.song_queue import BgDownloadSongQueue
 from cogs.music.song_cache import LRUSongsCache
-from cogs.music.music_downlaoder import SongDownloader
+from cogs.music.music_downloader import SongDownloader
 from config import *
 from .song import SongRequest
 
@@ -74,6 +74,12 @@ class MusicCog(commands.Cog):
         music_player = self._servers_music_players[ctx.guild.id]
         await music_player.clear_queue()
         await ctx.send(embed=clear())
+
+    @commands.command(description=SHUFFLE_DESCRIPTION)
+    async def shuffle(self, ctx: commands.Context) -> None:
+        music_player = self._servers_music_players[ctx.guild.id]
+        await music_player.shuffle()
+        await ctx.send(embed=shuffled())
 
     async def _stop_music_player(self, guild_id: int) -> None:
         try:
