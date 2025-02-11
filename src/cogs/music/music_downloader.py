@@ -120,7 +120,9 @@ class PlaylistExtractor:
         with yt_dlp.YoutubeDL(self._ydl_opts) as ydl:
             try:
                 playlist_info = ydl.extract_info(self._playlist_url, download=False)
-            except yt_dlp.utils.DownloadError:
+            except yt_dlp.utils.DownloadError as e:
+                if "This playlist type is unviewable." in str(e):
+                    raise YoutubeMixFoundException(self._playlist_url)
                 raise PlaylistNotFoundError(self._playlist_url)
 
         return PlaylistRequest(title=playlist_info['title'],
@@ -199,10 +201,21 @@ class PlaylistFoundException(DownloaderException):
     @staticmethod
     def embed(query: str) -> Embed:
         message = Embed(title="📋 Playlist Found",
-                        description=f"Found a playlist for: *\"{query}\"*\n"
-                                    f"We currently do not support playlists",
+                        description=f"Found a playlist for: *\"{query}\"*\n",
                         color=ERROR_COLOR)
         message.set_footer(text="💡Tip: Provide a direct link to a song or search for a different song")
+        return message
+
+
+class YoutubeMixFoundException(DownloaderException):
+    @staticmethod
+    def embed(query: str) -> Embed:
+        message = Embed(title="🎧 Youtube Mix Found",
+                        description=f"Found a Youtube Mix for: *\"{query}\"*\n"
+                                    "Youtube Mixes are prepared by Youtube for a specific user"
+                                    " and we currently do not support them",
+                        color=ERROR_COLOR)
+        message.set_footer(text="💡Tip: Search for a different playlist")
         return message
 
 

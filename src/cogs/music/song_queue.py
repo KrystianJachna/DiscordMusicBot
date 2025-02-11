@@ -4,7 +4,8 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from .messages import *
-from .music_downloader import SongDownloader, DownloaderException, PlaylistFoundException, PlaylistExtractor
+from .music_downloader import SongDownloader, DownloaderException, PlaylistFoundException, PlaylistExtractor, \
+    PlaylistNotFoundError
 from .song import SongRequest
 from random import shuffle
 
@@ -92,10 +93,13 @@ class BgDownloadSongQueue(SongQueue):
                     self._downloaded_songs.append(song)
                     self._song_available.set()
                 except PlaylistFoundException:
-                    playlist_extractor = PlaylistExtractor(song_request.title)
-                    playlist = await playlist_extractor.get_playlist_requests(song_request)
-                    self._waiting_queries.extend(playlist.songs)
-                    embed_message = added_playlist_to_queue(playlist)
+                    try:
+                        playlist_extractor = PlaylistExtractor(song_request.title)
+                        playlist = await playlist_extractor.get_playlist_requests(song_request)
+                        self._waiting_queries.extend(playlist.songs)
+                        embed_message = added_playlist_to_queue(playlist)
+                    except DownloaderException as e:
+                        embed_message = e.embed(song_request.title)
                 except DownloaderException as e:
                     embed_message = e.embed(song_request.title)
                 except Exception as e:
