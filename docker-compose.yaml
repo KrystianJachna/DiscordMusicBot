@@ -1,0 +1,38 @@
+services:
+  music_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - internal
+    depends_on:
+      - mongodb
+      - minio
+
+  mongodb:
+    image: mongo:latest
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    networks:
+      - internal
+    ports:
+      - "27017:27017"
+
+  minio:
+    image: minio/minio:latest
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server /data
+    networks:
+      - internal
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+networks:
+  internal:
+    driver: bridge
