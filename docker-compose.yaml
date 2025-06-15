@@ -5,6 +5,14 @@ services:
       dockerfile: Dockerfile
     environment:
       DISCORD_TOKEN: ${DISCORD_TOKEN}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: 27017
+      MINIO_HOST: minio
+      MINIO_PORT: 9000
     networks:
       - internal
     depends_on:
