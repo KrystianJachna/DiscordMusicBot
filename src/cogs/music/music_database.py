@@ -155,6 +155,7 @@ class FileStorageManager:
         thumbnail_url: str
         title: str
         duration: int
+        expires_at: int
 
     async def get_item(self, query: dict, expires_minutes: int) -> StoredMusicFile:
         document = await self.collection.find_one(query)
@@ -188,7 +189,8 @@ class FileStorageManager:
             music_url=music_url,
             thumbnail_url=thumbnail_url,
             title=document["title"],
-            duration=document["duration"]
+            duration=document["duration"],
+            expires_at=expires_minutes * 60
         )
 
     async def get_item_by_service_id(self, unique_service_id: str, expires_minutes: int) -> StoredMusicFile:
@@ -224,7 +226,7 @@ class FileStorageManager:
             logger.info(f"Successfully deleted item {document['item_id']} and its files.")
 
 
-class DatabaserDaemon:
+class DatabaseDaemon:
 
     def __init__(self, file_storage_manager: FileStorageManager, interval_seconds: int = 60 * 5):
         self.file_storage_manager = file_storage_manager

@@ -15,6 +15,8 @@ from uuid import uuid4
 import os
 import requests
 from dataclasses import dataclass
+from .music_database import FileStorageManager, NewSongQuery
+from urllib.parse import urlparse, parse_qs
 
 
 class YtDlpLogger:
@@ -36,16 +38,6 @@ class YtDlpLogger:
 
     def error(self, msg):
         logging.error(f"{self._LOG_PREFIX}{msg}")
-
-
-@dataclass
-class NewSongQuery:
-    title: str
-    original_url: str | None
-    unique_id: str
-    duration: int
-    music_file: Path
-    thumbnail_file: Optional[Path] = None
 
 
 class MusicDownloader:
@@ -79,6 +71,13 @@ class MusicDownloader:
         return random_file_path
 
     @staticmethod
+    def delete_files(song_query: NewSongQuery) -> None:
+        if song_query.music_file.exists():
+            os.remove(song_query.music_file)
+        if song_query.thumbnail_file and song_query.thumbnail_file.exists():
+            os.remove(song_query.thumbnail_file)
+
+    @staticmethod
     def _save_thumbnail(thumbnail_url: str) -> Path | None:
         response = requests.get(thumbnail_url)
         if response.status_code == 200:
@@ -97,12 +96,12 @@ class MusicDownloader:
         song_query = NewSongQuery(
             title=info['title'],
             original_url=url,
-            unique_id=info['id'],
+            unique_service_id=info['id'],
             duration=info['duration'],
             music_file=song_file_path,
             thumbnail_file=yt_thumbnail_path if yt_thumbnail_path else Path(""),
         )
-        logging.info(f"Song query created:\n", song_query)
+        logging.info(f"Song query created:\n{song_query}")
         return song_query
 
 
@@ -120,9 +119,11 @@ class SongInfoProvider:
         'logger': YtDlpLogger(),
     }
 
-    def __init__(self, song_cache: SongsCache):
+    def __init__(self, song_cache: SongsCache, storage_manager: FileStorageManager):
         self._load_cookies(COOKIES_PATH)  # cookies are required to be able to download age-restricted songs
         self._song_cache: SongsCache = song_cache
+        self.storage_manager = storage_manager
+        self.song_downloader = MusicDownloader()
 
     def _load_cookies(self, cookies_path: Path) -> None:
         if cookies_path.exists():
@@ -136,24 +137,68 @@ class SongInfoProvider:
     async def prepare_song(self, query: str) -> Song:
         if query in self._song_cache:
             return self._song_cache[query]
-        song = await asyncio.to_thread(self._construct_song, query)
+        song = await self._construct_song(query)
         self._song_cache[query] = song
         return song
 
-    def _construct_song(self, query: str) -> Song:
+    @staticmethod
+    def get_unique_service_id(url: str) -> str:
+        parsed_url = urlparse(url)
+
+        # Handle youtu.be URLs
+        if 'youtu.be' in parsed_url.netloc:
+            return parsed_url.path.lstrip('/')
+
+        # Handle youtube.com URLs
+        query_string = parsed_url.query
+        query_params = parse_qs(query_string)
+
+        if 'v' in query_params:
+            return query_params['v'][0]
+
+        # If we can't find a video ID, raise an exception
+        raise NoResultsFoundException(url)
+
+    async def _construct_song(self, query: str) -> Song:
         url = self.get_url(query)
+        unique_service_id = self.get_unique_service_id(url)
+
+        if await self.storage_manager.check_file_exists(unique_service_id):
+            logging.info(f"Song with unique ID {unique_service_id} already exists in storage.")
+            music_file = await self.storage_manager.get_item_by_service_id(unique_service_id, 24 * 60)
+            print(music_file)
+            print('*' * 100)
+            return Song(
+                title=music_file.title,
+                url=url,
+                duration=music_file.duration,
+                thumbnail=music_file.thumbnail_url,
+                expires_at=music_file.expires_at,
+                _stream_url=music_file.music_url,
+            )
         if url in self._song_cache:
             return self._song_cache[url]
-        with yt_dlp.YoutubeDL(self._yt_dlp_opts) as ydl:
-            try:
-                info = ydl.extract_info(url, download=False)
-            except yt_dlp.utils.DownloadError as e:
-                if "Sign in to confirm your age" in str(e):
-                    raise AgeRestrictedException(query)
-                raise NoResultsFoundException(query)
+
+        def inner():
+            with yt_dlp.YoutubeDL(self._yt_dlp_opts) as ydl:
+                try:
+                    return ydl.extract_info(url, download=False)
+                except yt_dlp.utils.DownloadError as e:
+                    if "Sign in to confirm your age" in str(e):
+                        raise AgeRestrictedException(query)
+                    raise NoResultsFoundException(query)
+
+        info = await asyncio.to_thread(inner)
 
         if info.get('is_live', False):
             raise LiveFoundException(query)
+
+        async def inner_download():
+            song_query = await asyncio.to_thread(self.song_downloader.download, url)
+            await self.storage_manager.make_document(song_query)
+            self.song_downloader.delete_files(song_query)
+
+        asyncio.create_task(inner_download())
 
         return Song(title=info['title'],
                     url=url,

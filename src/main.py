@@ -3,10 +3,13 @@ import asyncio
 import discord
 from discord.ext import commands
 import logging
+
+from cogs.music.music_database import DatabaseDaemon
 from utils import load_token, setup_logging
 from cogs.music.music_cog import MusicCog
 from help_message import HelpMessage
 from config import *
+
 
 intents = discord.Intents.default()
 intents.message_content = True  # Required for commands to be able to read arguments
@@ -44,12 +47,37 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
         logging.error(f"Error occurred in command: {ctx.command}", exc_info=True)
 
 
+async def create_file_storage_manager(bucket_name=DEFAULT_BUCKET_NAME, create_bucket=True):
+    from cogs.music.music_database import FileStorageManager
+
+    if mongo_client is None or minio_client is None:
+        logging.error("Cannot create FileStorageManager: MongoDB or MinIO client is not available")
+        return None
+
+    try:
+        storage_manager = await FileStorageManager.create_async(
+            mongo_db_client=mongo_client,
+            minio_client=minio_client,
+            bucket_name=bucket_name,
+            create_bucket=create_bucket
+        )
+        logging.info(f"FileStorageManager created successfully with bucket: {bucket_name}")
+        return storage_manager
+    except Exception as e:
+        logging.error(f"Failed to create FileStorageManager: {str(e)}")
+        return None
+
+
+
 async def main() -> None:
     try:
+        storage_manager = await create_file_storage_manager()
+        daemon = DatabaseDaemon(storage_manager)
+        # await daemon.start()
         token = load_token()
         setup_logging(logging.INFO, enable_file_logging=True)
         async with bot:
-            await bot.add_cog(MusicCog(bot))
+            await bot.add_cog(MusicCog(bot, storage_manager))
             await bot.start(token)
     except discord.LoginFailure:
         logging.error("Failed to log in. Ensure the token is correct.")
