@@ -141,7 +141,7 @@ class SongInfoProvider:
         return song
 
     def _construct_song(self, query: str) -> Song:
-        url = self._get_url(query)
+        url = self.get_url(query)
         if url in self._song_cache:
             return self._song_cache[url]
         with yt_dlp.YoutubeDL(self._yt_dlp_opts) as ydl:
@@ -165,7 +165,7 @@ class SongInfoProvider:
                     ),
                     _stream_url=info['url'])
 
-    def _get_url(self, query: str) -> str:
+    def get_url(self, query: str) -> str:
         if self._youtube_playlist_regex.match(query):
             raise PlaylistFoundException(query)
         if self._youtube_regex.match(query):
@@ -234,6 +234,7 @@ class DownloaderException(Exception, ABC):
     @abstractmethod
     def embed(query: str) -> Embed:
         pass
+
 
 class NoResultsFoundException(DownloaderException):
     @staticmethod

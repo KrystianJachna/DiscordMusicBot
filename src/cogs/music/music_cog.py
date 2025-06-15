@@ -1,3 +1,6 @@
+import asyncio
+import logging
+
 import discord
 from discord.ext import commands, tasks
 
@@ -5,7 +8,7 @@ from cogs.music.messages import *
 from cogs.music.music_service import MusicPlayer
 from cogs.music.song_queue import BgDownloadSongQueue
 from cogs.music.song_cache import LRUSongsCache
-from cogs.music.music_downloader import SongInfoProvider
+from cogs.music.music_downloader import SongInfoProvider, PlaylistFoundException
 from config import *
 from .song import SongRequest
 
@@ -24,6 +27,27 @@ class MusicCog(commands.Cog):
         music_player = self._servers_music_players[ctx.guild.id]
         song_request = SongRequest(search, ctx)
         await music_player.play(song_request)
+
+    @commands.command(description="...")
+    async def create_playlist(self, ctx: commands.Context, *, name: str) -> None:
+        music_player = self._servers_music_players[ctx.guild.id]
+        now_playing, queries = await music_player.get_queue_info()
+        queries_urls = [now_playing.url] + [
+            url for url in await asyncio.gather(
+                *(asyncio.to_thread(self._song_downloader.get_url, query) for query in queries),
+                return_exceptions=False
+            )
+        ]
+        # TODO: save playlist to database
+
+    @commands.command(description="...")
+    async def playlist(self, ctx: commands.Context, *, name: str) -> None:
+        music_player = self._servers_music_players[ctx.guild.id]
+        urls = ...  # TODO: get playlist from database
+        for url in urls:
+            song_request = SongRequest(url, ctx, quiet=True)
+            await music_player.play(song_request)
+
 
     @commands.command(description=SKIP_DESCRIPTION)
     async def skip(self, ctx: commands.Context) -> None:
