@@ -29,6 +29,8 @@ services:
       - internal
     ports:
       - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
 
   minio:
     image: minio/minio:latest
@@ -42,7 +44,15 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+    volumes:
+      - minio_data:/data
 
 networks:
   internal:
     driver: bridge
+
+volumes:
+  minio_data:
+    driver: local
+  mongodb_data:
+    driver: local
