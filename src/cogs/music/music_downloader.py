@@ -11,6 +11,10 @@ from .song import Song, SongRequest, PlaylistRequest
 from abc import ABC, abstractmethod
 from discord import Embed
 from config import *
+from uuid import uuid4
+import os
+import requests
+from dataclasses import dataclass
 
 
 class YtDlpLogger:
@@ -34,7 +38,70 @@ class YtDlpLogger:
         logging.error(f"{self._LOG_PREFIX}{msg}")
 
 
-class SongDownloader:
+@dataclass
+class NewSongQuery:
+    title: str
+    original_url: str | None
+    unique_id: str
+    duration: int
+    music_file: Path
+    thumbnail_file: Optional[Path] = None
+
+
+class MusicDownloader:
+    _ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': str(DOWNLOAD_FOLDER / '%(id)s.%(ext)s'),
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+        'no_playlist': True,
+        'quiet': True,
+        'match_filter': yt_dlp.utils.match_filter_func("!is_live"),
+    }
+
+    def _extract_info(self, url: str) -> dict:
+        with yt_dlp.YoutubeDL(self._ydl_opts) as ydl:
+            return ydl.extract_info(url, download=True)
+
+    @staticmethod
+    def _rename_file(original_file_path: str) -> Path:
+        random_file = f"{uuid4()}.mp3"
+        random_file_path = DOWNLOAD_FOLDER / random_file
+        os.rename(original_file_path, random_file_path)
+        return random_file_path
+
+    @staticmethod
+    def _save_thumbnail(thumbnail_url: str) -> Path | None:
+        response = requests.get(thumbnail_url)
+        if response.status_code == 200:
+            thumbnail_file = DOWNLOAD_FOLDER / f"{uuid4()}.jpg"
+            with open(thumbnail_file, 'wb') as file:
+                file.write(response.content)
+            return thumbnail_file
+        return None
+
+    def download(self, url: str) -> NewSongQuery:
+        info = self._extract_info(url)
+        song_file_path = self._rename_file(DOWNLOAD_FOLDER / f"{info['id']}.mp3")
+        yt_thumbnail_link = info.get('thumbnail', None)
+        yt_thumbnail_path = self._save_thumbnail(yt_thumbnail_link) if yt_thumbnail_link else None
+
+        song_query = NewSongQuery(
+            title=info['title'],
+            original_url=url,
+            unique_id=info['id'],
+            duration=info['duration'],
+            music_file=song_file_path,
+            thumbnail_file=yt_thumbnail_path if yt_thumbnail_path else Path(""),
+        )
+        logging.info(f"Song query created:\n", song_query)
+        return song_query
+
+
+class SongInfoProvider:
     _youtube_regex = re.compile(
         r"https?://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)([\w\-_]*)(&(amp;)?‌​[\w?‌​=]*)?"
     )

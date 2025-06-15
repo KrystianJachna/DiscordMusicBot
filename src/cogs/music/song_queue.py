@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from .messages import *
-from .music_downloader import SongDownloader, DownloaderException, PlaylistFoundException, PlaylistExtractor, \
+from .music_downloader import SongInfoProvider, DownloaderException, PlaylistFoundException, PlaylistExtractor, \
     PlaylistNotFoundError
 from .song import SongRequest
 from random import shuffle
@@ -42,7 +42,7 @@ class SongQueue(ABC):
 
 class BgDownloadSongQueue(SongQueue):
 
-    def __init__(self, song_downloader: SongDownloader):
+    def __init__(self, song_downloader: SongInfoProvider):
         self._music_downloader = song_downloader
         self._downloaded_songs: list[Song] = []
         self._waiting_queries: list[SongRequest] = []
