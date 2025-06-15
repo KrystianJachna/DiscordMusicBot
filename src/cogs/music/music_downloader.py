@@ -64,7 +64,12 @@ class MusicDownloader:
 
     def _extract_info(self, url: str) -> dict:
         with yt_dlp.YoutubeDL(self._ydl_opts) as ydl:
-            return ydl.extract_info(url, download=True)
+            try:
+                return ydl.extract_info(url, download=True)
+            except yt_dlp.utils.DownloadError as e:
+                if "Sign in to confirm your age" in str(e):
+                    raise AgeRestrictedException(url)
+                raise NoResultsFoundException(url)
 
     @staticmethod
     def _rename_file(original_file_path: str) -> Path:
@@ -229,7 +234,6 @@ class DownloaderException(Exception, ABC):
     @abstractmethod
     def embed(query: str) -> Embed:
         pass
-
 
 class NoResultsFoundException(DownloaderException):
     @staticmethod
