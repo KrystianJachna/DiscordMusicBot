@@ -21,7 +21,7 @@ class NewSongQuery:
     original_url: str | None
     unique_service_id: str
     duration: int
-    thumbnail_file: Path
+    thumbnail_url: str
     music_file: Path
 
 
@@ -108,6 +108,7 @@ class FileStorageManager:
             "title": query.title,
             "url": query.original_url,
             "duration": query.duration,
+            "thumbnail_url": query.thumbnail_url,
 
             "uploaded_successfully": False,
             "creation_date": datetime.now(ZoneInfo("UTC")),
@@ -116,7 +117,7 @@ class FileStorageManager:
 
         def send_files():
             self._send_to_bucket(query.music_file, self.music_path(item_id), "audio/mpeg")
-            self._send_to_bucket(query.thumbnail_file, self.image_path(item_id), "image/jpeg")
+            # self._send_to_bucket(query.thumbnail_file, self.image_path(item_id), "image/jpeg")
 
         result = await self.collection.insert_one(file_data)
         if not result.acknowledged:
@@ -178,16 +179,16 @@ class FileStorageManager:
             object_name=self.music_path(document["item_id"]),
             expires=timedelta(minutes=expires_minutes)
         )
-        thumbnail_url = await asyncio.to_thread(
-            self.minio_client.presigned_get_object,
-            bucket_name=self.bucket_name,
-            object_name=self.image_path(document["item_id"]),
-            expires=timedelta(minutes=expires_minutes)
-        )
+        # thumbnail_url = await asyncio.to_thread(
+        #     self.minio_client.presigned_get_object,
+        #     bucket_name=self.bucket_name,
+        #     object_name=self.image_path(document["item_id"]),
+        #     expires=timedelta(minutes=expires_minutes)
+        # )
 
         return self.StoredMusicFile(
             music_url=music_url,
-            thumbnail_url=thumbnail_url,
+            thumbnail_url=document["thumbnail_url"],
             title=document["title"],
             duration=document["duration"],
             expires_at=expires_minutes * 60

@@ -19,6 +19,9 @@ def setup_logging(level: int = logging.INFO, enable_file_logging: bool = False) 
     logger = logging.getLogger()
     logger.setLevel(level)
     formatter = logging.Formatter("%(asctime)-15s - %(name)-25s - %(levelname)-5s - %(message)s")
+    
+    if logger.hasHandlers():
+        logger.handlers.clear()
 
     console_handler = logging.StreamHandler(stream=stdout)
     console_handler.setFormatter(formatter)

@@ -16,8 +16,54 @@ import os
 import requests
 from dataclasses import dataclass
 from .music_database import FileStorageManager, NewSongQuery
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, quote
 
+# def encode_url_for_discord(url: str) -> str:
+#     """
+#     Properly encode a URL for use in Discord embeds.
+#     This ensures special characters in the URL are properly handled.
+#     """
+#     # Parse the URL to handle special characters
+#     parsed_url = urlparse(url)
+#     # Encode the path component
+#     encoded_path = quote(parsed_url.path)
+#     # Start with the scheme and netloc (domain) which don't need encoding
+#     encoded_url = f"{parsed_url.scheme}://{parsed_url.netloc}{encoded_path}"
+
+#     # Handle query parameters if present
+#     if parsed_url.query:
+#         # Parse and encode each query parameter
+#         query_params = parse_qs(parsed_url.query)
+#         encoded_query_parts = []
+#         for key, values in query_params.items():
+#             for value in values:
+#                 encoded_query_parts.append(f"{quote(key)}={quote(value)}")
+#         encoded_url += "?" + "&".join(encoded_query_parts)
+
+#     return encoded_url
+
+def get_unique_service_id(url: str) -> str:
+    parsed_url = urlparse(url)
+
+    if 'youtu.be' in parsed_url.netloc:
+        return parsed_url.path.lstrip('/')
+
+    query_string = parsed_url.query
+    query_params = parse_qs(query_string)
+
+    if 'v' in query_params:
+        return query_params['v'][0]
+    raise NoResultsFoundException(url)
+
+def to_song(stored_music_file: FileStorageManager.StoredMusicFile, url: str) -> Song:
+    return Song(
+        title=stored_music_file.title,
+        url=url,
+        duration=stored_music_file.duration,
+        thumbnail=stored_music_file.thumbnail_url,
+        expires_at=stored_music_file.expires_at,
+        _stream_url=stored_music_file.music_url,
+    )
 
 class YtDlpLogger:
     """
@@ -39,7 +85,6 @@ class YtDlpLogger:
     def error(self, msg):
         logging.error(f"{self._LOG_PREFIX}{msg}")
 
-
 class MusicDownloader:
     _ydl_opts = {
         'format': 'bestaudio/best',
@@ -53,8 +98,13 @@ class MusicDownloader:
         'quiet': True,
         'match_filter': yt_dlp.utils.match_filter_func("!is_live"),
     }
+    
+    def __init__(self, url: str) -> None:
+        self.url = url
+        self.song_file_path: Optional[Path] = None
+        # self.thumbnail_file_path: Optional[Path] = None
 
-    def _extract_info(self, url: str) -> dict:
+    def _extract_info(self, url: str) -> dict | None:
         with yt_dlp.YoutubeDL(self._ydl_opts) as ydl:
             try:
                 return ydl.extract_info(url, download=True)
@@ -63,19 +113,15 @@ class MusicDownloader:
                     raise AgeRestrictedException(url)
                 raise NoResultsFoundException(url)
 
-    @staticmethod
-    def _rename_file(original_file_path: str) -> Path:
-        random_file = f"{uuid4()}.mp3"
-        random_file_path = DOWNLOAD_FOLDER / random_file
-        os.rename(original_file_path, random_file_path)
-        return random_file_path
+    def _prepare_mp3_file(self, original_file_path: Path) -> None:
+        self.song_file_path = DOWNLOAD_FOLDER / f"{uuid4()}.mp3"
+        os.rename(original_file_path, self.song_file_path)
 
-    @staticmethod
-    def delete_files(song_query: NewSongQuery) -> None:
-        if song_query.music_file.exists():
-            os.remove(song_query.music_file)
-        if song_query.thumbnail_file and song_query.thumbnail_file.exists():
-            os.remove(song_query.thumbnail_file)
+    def clean_up(self) -> None:
+        if self.song_file_path and self.song_file_path.exists():
+            os.remove(self.song_file_path)
+        # if self.thumbnail_file_path and self.thumbnail_file_path.exists():
+        #     os.remove(self.thumbnail_file_path)
 
     @staticmethod
     def _save_thumbnail(thumbnail_url: str) -> Path | None:
@@ -87,21 +133,21 @@ class MusicDownloader:
             return thumbnail_file
         return None
 
-    def download(self, url: str) -> NewSongQuery:
-        info = self._extract_info(url)
-        song_file_path = self._rename_file(DOWNLOAD_FOLDER / f"{info['id']}.mp3")
-        yt_thumbnail_link = info.get('thumbnail', None)
-        yt_thumbnail_path = self._save_thumbnail(yt_thumbnail_link) if yt_thumbnail_link else None
+    def download(self) -> NewSongQuery:
+        info = self._extract_info(self.url)
+        self._prepare_mp3_file(DOWNLOAD_FOLDER / f"{info['id']}.mp3")
+        # yt_thumbnail_link = info.get('thumbnail', None) 
+        # yt_thumbnail_path = self._save_thumbnail(yt_thumbnail_link) if yt_thumbnail_link else None
 
         song_query = NewSongQuery(
             title=info['title'],
-            original_url=url,
-            unique_service_id=info['id'],
+            original_url=self.url,
+            unique_service_id=get_unique_service_id(self.url),
             duration=info['duration'],
-            music_file=song_file_path,
-            thumbnail_file=yt_thumbnail_path if yt_thumbnail_path else Path(""),
+            music_file=self.song_file_path,
+            thumbnail_url=info['thumbnails'][0]['url'],  
         )
-        logging.info(f"Song query created:\n{song_query}")
+        logging.info(f"Downloaded song: {song_query.title} ({song_query.unique_service_id})")
         return song_query
 
 
@@ -123,7 +169,6 @@ class SongInfoProvider:
         self._load_cookies(COOKIES_PATH)  # cookies are required to be able to download age-restricted songs
         self._song_cache: SongsCache = song_cache
         self.storage_manager = storage_manager
-        self.song_downloader = MusicDownloader()
 
     def _load_cookies(self, cookies_path: Path) -> None:
         if cookies_path.exists():
@@ -135,71 +180,62 @@ class SongInfoProvider:
                          "See README.md for details.")
 
     async def prepare_song(self, query: str) -> Song:
-        if query in self._song_cache:
-            return self._song_cache[query]
+        # TODO: remove comments after testing
+        # if query in self._song_cache:
+        #     return self._song_cache[query]
+        logging.info(f"Preparing song for query: {query}")
         song = await self._construct_song(query)
         self._song_cache[query] = song
         return song
-
-    @staticmethod
-    def get_unique_service_id(url: str) -> str:
-        parsed_url = urlparse(url)
-
-        # Handle youtu.be URLs
-        if 'youtu.be' in parsed_url.netloc:
-            return parsed_url.path.lstrip('/')
-
-        # Handle youtube.com URLs
-        query_string = parsed_url.query
-        query_params = parse_qs(query_string)
-
-        if 'v' in query_params:
-            return query_params['v'][0]
-
-        # If we can't find a video ID, raise an exception
-        raise NoResultsFoundException(url)
+    
+    def _extract_info(self, query: str, url: str) -> dict | None:
+        with yt_dlp.YoutubeDL(self._yt_dlp_opts) as ydl:
+            try:
+                return ydl.extract_info(url, download=False)
+            except yt_dlp.utils.DownloadError as e:
+                if "Sign in to confirm your age" in str(e):
+                    raise AgeRestrictedException(url)
+                raise NoResultsFoundException(query)
+        
+    async def _save_to_db(self, url: str) -> None:
+        song_downloader = MusicDownloader(url)
+        song_query = await asyncio.to_thread(song_downloader.download)
+        item_id = await self.storage_manager.make_document(song_query)
+        song_downloader.clean_up()
+        
+        if item_id is None:
+            logging.error(f"Failed to save song {song_query.title} ({song_query.unique_service_id}) to database")
+        else:
+            logging.info(f"Song {song_query.title} ({song_query.unique_service_id}) saved to database with ID {item_id}")
 
     async def _construct_song(self, query: str) -> Song:
-        url = self.get_url(query)
-        unique_service_id = self.get_unique_service_id(url)
+        url = await self.get_url(query)
+        unique_service_id = get_unique_service_id(url)
+        logging.info(f"Constructing song for URL: {url} with unique ID: {unique_service_id}")
+        
+        # TODO: remove comments after testing
+        # if url in self._song_cache:
+        #     return self._song_cache[url]
 
         if await self.storage_manager.check_file_exists(unique_service_id):
             logging.info(f"Song with unique ID {unique_service_id} already exists in storage.")
-            music_file = await self.storage_manager.get_item_by_service_id(unique_service_id, 24 * 60)
-            print(music_file)
-            print('*' * 100)
-            return Song(
-                title=music_file.title,
-                url=url,
-                duration=music_file.duration,
-                thumbnail=music_file.thumbnail_url,
-                expires_at=music_file.expires_at,
-                _stream_url=music_file.music_url,
-            )
-        if url in self._song_cache:
-            return self._song_cache[url]
+            stored_music_file = await self.storage_manager.get_item_by_service_id(unique_service_id, 24 * 60)
+            logging.info(stored_music_file)
+            return to_song(stored_music_file, url)
+        logging.info(f"Song with unique ID {unique_service_id} not found in storage. Extracting info from YouTube.")
 
-        def inner():
-            with yt_dlp.YoutubeDL(self._yt_dlp_opts) as ydl:
-                try:
-                    return ydl.extract_info(url, download=False)
-                except yt_dlp.utils.DownloadError as e:
-                    if "Sign in to confirm your age" in str(e):
-                        raise AgeRestrictedException(query)
-                    raise NoResultsFoundException(query)
-
-        info = await asyncio.to_thread(inner)
+        info = await asyncio.to_thread(self._extract_info, query, url)
 
         if info.get('is_live', False):
             raise LiveFoundException(query)
 
-        async def inner_download():
-            song_query = await asyncio.to_thread(self.song_downloader.download, url)
-            await self.storage_manager.make_document(song_query)
-            self.song_downloader.delete_files(song_query)
+        task = asyncio.create_task(self._save_to_db(url))
+        await task
+        logging.info(f"Saved song {info['title']} ({unique_service_id}) to database")
 
-        asyncio.create_task(inner_download())
-
+        # Ensure thumbnail URL is properly encoded for Discord embeds
+        # thumbnail_url = info['thumbnails'][0]['url']
+        # encoded_thumbnail_url = encode_url_for_discord(thumbnail_url)
         return Song(title=info['title'],
                     url=url,
                     duration=info['duration'],
@@ -210,7 +246,7 @@ class SongInfoProvider:
                     ),
                     _stream_url=info['url'])
 
-    def get_url(self, query: str) -> str:
+    async def get_url(self, query: str) -> str:
         if self._youtube_playlist_regex.match(query):
             raise PlaylistFoundException(query)
         if self._youtube_regex.match(query):

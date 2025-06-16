@@ -4,12 +4,11 @@ import discord
 from discord.ext import commands
 import logging
 
-from cogs.music.music_database import DatabaseDaemon
 from utils import load_token, setup_logging
 from cogs.music.music_cog import MusicCog
 from help_message import HelpMessage
-from config import *
-
+from config import ERROR_COLOR, DEFAULT_BUCKET_NAME, mongo_client, minio_client
+from cogs.music.music_database import FileStorageManager
 
 intents = discord.Intents.default()
 intents.message_content = True  # Required for commands to be able to read arguments
@@ -40,16 +39,14 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
                                            description="Type `!help` to see the list of available commands",
                                            color=ERROR_COLOR))
     elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send(embed=discord.Embed(title=f"🤔 Oops! You’re missing something!",
+        await ctx.send(embed=discord.Embed(title="🤔 Oops! You’re missing something!",
                                            description=f"Type `!help {ctx.command.name}` for more information",
                                            color=ERROR_COLOR))
     else:
         logging.error(f"Error occurred in command: {ctx.command}", exc_info=True)
 
 
-async def create_file_storage_manager(bucket_name=DEFAULT_BUCKET_NAME, create_bucket=True):
-    from cogs.music.music_database import FileStorageManager
-
+async def create_file_storage_manager(bucket_name=DEFAULT_BUCKET_NAME, create_bucket=True) -> FileStorageManager | None:
     if mongo_client is None or minio_client is None:
         logging.error("Cannot create FileStorageManager: MongoDB or MinIO client is not available")
         return None
@@ -68,11 +65,11 @@ async def create_file_storage_manager(bucket_name=DEFAULT_BUCKET_NAME, create_bu
         return None
 
 
-
 async def main() -> None:
     try:
         storage_manager = await create_file_storage_manager()
-        daemon = DatabaseDaemon(storage_manager)
+        # TODO: Uncomment the following lines if you want to run a database daemon
+        # daemon = DatabaseDaemon(storage_manager)
         # await daemon.start()
         token = load_token()
         setup_logging(logging.INFO, enable_file_logging=True)
