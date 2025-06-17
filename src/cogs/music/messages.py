@@ -40,8 +40,7 @@ LOOP_DESCRIPTION = (
 )
 
 QUEUE_DESCRIPTION = (
-    "Display the current list of songs in the queue.\n"
-    "**Usage**: `!queue`"
+    "Display the current list of songs in the queue.\n" "**Usage**: `!queue`"
 )
 
 CLEAR_DESCRIPTION = (
@@ -49,15 +48,15 @@ CLEAR_DESCRIPTION = (
     "**Usage**: `!clear`"
 )
 
-SHUFFLE_DESCRIPTION = (
-    "Shuffle the songs in the queue.\n"
-    "**Usage**: `!shuffle`"
-)
+SHUFFLE_DESCRIPTION = "Shuffle the songs in the queue.\n" "**Usage**: `!shuffle`"
+
 
 def added_to_queue(song: Song, queue_elements: int) -> Embed:
-    message = Embed(title=" 🎶 Song Added to Queue",
-                    description=f"🔗 [{song.title}]({song.url})\n",
-                    color=SUCCESS_COLOR)
+    message = Embed(
+        title=" 🎶 Song Added to Queue",
+        description=f"🔗 [{song.title}]({song.url})\n",
+        color=SUCCESS_COLOR,
+    )
     message.add_field(name="Duration", value=str(timedelta(seconds=song.duration)))
     message.add_field(name="Queue Length", value=queue_elements)
     message.set_thumbnail(url=song.thumbnail or song.url)
@@ -65,33 +64,44 @@ def added_to_queue(song: Song, queue_elements: int) -> Embed:
 
 
 def added_playlist_to_queue(playlist: PlaylistRequest) -> Embed:
-    message = Embed(title="📋 Songs from Playlist Added to Queue",
-                    description=f"🔗 [{playlist.title}]({playlist.playlist_url})\n",
-                    color=SUCCESS_COLOR)
-    message.add_field(name="Total Duration", value=str(timedelta(seconds=playlist.total_duration)))
+    message = Embed(
+        title="📋 Songs from Playlist Added to Queue",
+        description=f"🔗 [{playlist.title}]({playlist.playlist_url})\n",
+        color=SUCCESS_COLOR,
+    )
+    message.add_field(
+        name="Total Duration", value=str(timedelta(seconds=playlist.total_duration))
+    )
     message.add_field(name="Number of Songs", value=playlist.length)
     message.set_thumbnail(url=playlist.thumbnail)
     message.set_footer(
-        text=f"Some songs may be unavailable, therefore the total duration and number of songs may differ")
+        text="Some songs may be unavailable, therefore the total duration and number of songs may differ"
+    )
     return message
 
 
 def download_error(query: str) -> Embed:
-    return Embed(title="⛔ Download Error",
-                 description=f"An error occurred while downloading the song: {query}.",
-                 color=ERROR_COLOR)
+    return Embed(
+        title="⛔ Download Error",
+        description=f"An error occurred while downloading the song: {query}.",
+        color=ERROR_COLOR,
+    )
 
 
 def skip_error() -> Embed:
-    return Embed(title="⛔ Skip Error",
-                 description="There is no song currently playing",
-                 color=ERROR_COLOR)
+    return Embed(
+        title="⛔ Skip Error",
+        description="There is no song currently playing",
+        color=ERROR_COLOR,
+    )
 
 
 def skipped(queue_length: int, looping_enabled: bool) -> Embed:
-    message = Embed(title="⏭️ Song skipped",
-                    description=f"**Queue Length**: {queue_length}",
-                    color=SUCCESS_COLOR)
+    message = Embed(
+        title="⏭️ Song skipped",
+        description=f"**Queue Length**: {queue_length}",
+        color=SUCCESS_COLOR,
+    )
     if looping_enabled:
         message.set_footer(text="🔄 Looping is enabled")
     return message
@@ -101,81 +111,131 @@ def not_in_voice_channel() -> Embed:
     return Embed(
         title="🔇 Not in Voice Channel",
         description="You must be in a voice channel to use this command!\n"
-                    "Please join a voice channel and try again.",
-        color=ERROR_COLOR
+        "Please join a voice channel and try again.",
+        color=ERROR_COLOR,
     )
 
 
 def not_playing() -> Embed:
-    return Embed(title="⏯️ Not Playing",
-                 description="There is no song currently playing",
-                 color=ERROR_COLOR)
+    return Embed(
+        title="⏯️ Not Playing",
+        description="There is no song currently playing",
+        color=ERROR_COLOR,
+    )
 
 
 def not_connected() -> Embed:
-    message = Embed(title="🔇 Not Connected",
-                    description="Bot needs to be connected to a voice channel to use this command",
-                    color=ERROR_COLOR)
-    message.set_footer(text="💡Tip: Play a song first to connect the bot to a voice channel")
+    message = Embed(
+        title="🔇 Not Connected",
+        description="Bot needs to be connected to a voice channel to use this command",
+        color=ERROR_COLOR,
+    )
+    message.set_footer(
+        text="💡Tip: Play a song first to connect the bot to a voice channel"
+    )
     return message
 
 
 def stopped() -> Embed:
-    return Embed(title="🛑️ Stopped",
-                 description="The music player has been stopped",
-                 color=SUCCESS_COLOR)
+    return Embed(
+        title="🛑️ Stopped",
+        description="The music player has been stopped",
+        color=SUCCESS_COLOR,
+    )
 
 
 def queue(now_playing: Song, coming_next: list[str], looping_enabled: bool) -> Embed:
     if now_playing or coming_next:
-        now_playing = f"**Now Playing**: [{now_playing.title}]({now_playing.url})" if now_playing else "waiting..."
-        message = Embed(title="🎵 Music Queue",
-                        description=now_playing,
-                        color=SUCCESS_COLOR)
-        waiting_in_queue = "- " + "\n- ".join(coming_next[:10]) if coming_next else "No songs in queue"
-        waiting_in_queue += f"\n**{len(coming_next)} more songs in queue**" if len(coming_next) > 10 else ""
+        now_playing_info = (
+            f"**Now Playing**: [{now_playing.title}]({now_playing.url})"
+            if now_playing
+            else "waiting..."
+        )
+        message = Embed(
+            title="🎵 Music Queue", description=now_playing_info, color=SUCCESS_COLOR
+        )
+        waiting_in_queue = (
+            "- " + "\n- ".join(coming_next[:10]) if coming_next else "No songs in queue"
+        )
+        waiting_in_queue += (
+            f"\n**{len(coming_next)} more songs in queue**"
+            if len(coming_next) > 10
+            else ""
+        )
         message.add_field(name="Coming Next:", value=waiting_in_queue)
     else:
-        message = Embed(title="🎵 Music Queue",
-                        description="No songs in queue",
-                        color=SUCCESS_COLOR)
+        message = Embed(
+            title="🎵 Music Queue", description="No songs in queue", color=SUCCESS_COLOR
+        )
     if looping_enabled:
         message.set_footer(text="🔄 Looping is enabled")
     return message
 
 
 def clear() -> Embed:
-    return Embed(title="🧹 Queue Cleared",
-                 description="The music queue has been cleared",
-                 color=SUCCESS_COLOR)
+    return Embed(
+        title="🧹 Queue Cleared",
+        description="The music queue has been cleared",
+        color=SUCCESS_COLOR,
+    )
 
 
 def paused(song_title: str, url: str) -> Embed:
-    return Embed(title="⏸️ Paused",
-                 description=f"Song: [{song_title}]({url})",
-                 color=SUCCESS_COLOR)
+    return Embed(
+        title="⏸️ Paused",
+        description=f"Song: [{song_title}]({url})",
+        color=SUCCESS_COLOR,
+    )
 
 
 def resumed(song_title: str, url: str) -> Embed:
-    return Embed(title="▶️ Resumed",
-                 description=f"Song: [{song_title}]({url})",
-                 color=SUCCESS_COLOR)
+    return Embed(
+        title="▶️ Resumed",
+        description=f"Song: [{song_title}]({url})",
+        color=SUCCESS_COLOR,
+    )
 
 
 def looping(looping_enabled: bool) -> Embed:
     description = f"**Status**: {'enabled' if looping_enabled else 'disabled'}"
-    return Embed(title=f"🔄 Looping",
-                 description=description,
-                 color=SUCCESS_COLOR)
+    return Embed(title="🔄 Looping", description=description, color=SUCCESS_COLOR)
 
 
 def not_in_same_voice_channel(bot_channel: str) -> Embed:
-    return Embed(title="⛔ Not in the Same Voice Channel",
-                 description=f"You must be in the same voice channel as the bot: **{bot_channel}**",
-                 color=ERROR_COLOR)
+    return Embed(
+        title="⛔ Not in the Same Voice Channel",
+        description=f"You must be in the same voice channel as the bot: **{bot_channel}**",
+        color=ERROR_COLOR,
+    )
 
 
 def shuffled() -> Embed:
-    return Embed(title="🔀 Queue Shuffled",
-                 description="The queue has been shuffled",
-                 color=SUCCESS_COLOR)
+    return Embed(
+        title="🔀 Queue Shuffled",
+        description="The queue has been shuffled",
+        color=SUCCESS_COLOR,
+    )
+
+
+def playlist_created(name: str, queries_urls: list[str]) -> Embed:
+    message = Embed(
+        title="📋 Playlist Created",
+        description=f"Playlist Name: **{name}**\n"
+        f"Number of Songs: **{len(queries_urls)}**",
+        color=SUCCESS_COLOR,
+    )
+    message.add_field(
+        name="Songs in Playlist",
+        value="- "
+        + "\n- ".join(queries_urls[:10])
+        + ("\n...and more" if len(queries_urls) > 10 else ""),
+    )
+    return message
+
+
+def playlist_loaded(name: str, song_count: int) -> Embed:
+    return Embed(
+        title="📋 Playlist Loaded",
+        description=f"Playlist **{name}** with **{song_count}** songs has been loaded into the queue.",
+        color=SUCCESS_COLOR,
+    )

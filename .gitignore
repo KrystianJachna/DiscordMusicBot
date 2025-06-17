@@ -169,3 +169,6 @@ out.*
 !gitkeep
 downloads/*
 /cookies.txt
+
+# For vscode
+.vscode/

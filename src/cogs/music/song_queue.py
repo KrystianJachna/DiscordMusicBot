@@ -4,8 +4,12 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from .messages import *
-from .music_downloader import SongInfoProvider, DownloaderException, PlaylistFoundException, PlaylistExtractor, \
-    PlaylistNotFoundError
+from .music_downloader import (
+    YouTubeSongInfoProvider,
+    DownloaderException,
+    PlaylistFoundException,
+    YouTubePlaylistExtractor,
+)
 from .song import SongRequest
 from random import shuffle
 
@@ -42,7 +46,7 @@ class SongQueue(ABC):
 
 class BgDownloadSongQueue(SongQueue):
 
-    def __init__(self, song_downloader: SongInfoProvider):
+    def __init__(self, song_downloader: YouTubeSongInfoProvider):
         self._music_downloader = song_downloader
         self._downloaded_songs: list[Song] = []
         self._waiting_queries: list[SongRequest] = []
@@ -73,7 +77,9 @@ class BgDownloadSongQueue(SongQueue):
         self._song_available.clear()
 
     async def get_queue_info(self) -> list[str]:
-        return [song.title for song in self._downloaded_songs] + [sr.title for sr in self._waiting_queries]
+        return [song.title for song in self._downloaded_songs] + [
+            sr.title for sr in self._waiting_queries
+        ]
 
     async def queue_length(self) -> int:
         return len(await self.get_queue_info())
@@ -94,8 +100,12 @@ class BgDownloadSongQueue(SongQueue):
                     self._song_available.set()
                 except PlaylistFoundException:
                     try:
-                        playlist_extractor = PlaylistExtractor(song_request.title)
-                        playlist = await playlist_extractor.get_playlist_requests(song_request)
+                        playlist_extractor = YouTubePlaylistExtractor(
+                            song_request.title
+                        )
+                        playlist = await playlist_extractor.get_playlist_requests(
+                            song_request
+                        )
                         self._waiting_queries.extend(playlist.songs)
                         embed_message = added_playlist_to_queue(playlist)
                     except DownloaderException as e:

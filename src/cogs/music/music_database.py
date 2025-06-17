@@ -7,9 +7,14 @@ import uuid
 import asyncio
 import logging
 
+from discord import Embed
+
+from config import ERROR_COLOR
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase, AsyncIOMotorCollection
 from bson.objectid import ObjectId
 from minio import Minio
+
+from abc import ABC, abstractmethod
 
 
 logger = logging.getLogger(__name__)
@@ -24,6 +29,11 @@ class NewSongQuery:
     thumbnail_url: str
     music_file: Path
 
+@dataclass
+class Playlist:
+    name: str
+    user_id: str
+    song_urls: list[str]
 
 class FileStorageManager:
 
@@ -45,7 +55,7 @@ class FileStorageManager:
 
         if not self.collection.index_information():
             logger.info(f"Creating indexes for collection {collection_name}.")
-            self.create_index()
+            asyncio.get_event_loop().run_until_complete(self.create_index())
 
     @classmethod
     async def create_async(cls, 
@@ -64,15 +74,15 @@ class FileStorageManager:
 
         if not await instance.collection.index_information():
             logger.info(f"Creating indexes for collection {collection_name}.")
-            instance.create_index()
+            await instance.create_index()
 
         return instance
 
-    def create_index(self):
-        self.collection.create_index("unique_service_id", unique=True)
-        self.collection.create_index("item_id", unique=True)
-        self.collection.create_index("uploaded_successfully")
-        self.collection.create_index("modification_date")
+    async def create_index(self):
+        await self.collection.create_index("unique_service_id", unique=True)
+        await self.collection.create_index("item_id", unique=True)
+        await self.collection.create_index("uploaded_successfully")
+        await self.collection.create_index("modification_date")
 
     @classmethod
     def music_path(cls, _id: str) -> str:
@@ -100,7 +110,7 @@ class FileStorageManager:
             raise RuntimeError(f"Failed to upload file {file} to {dest}: {str(e)}") from e
 
     async def make_document(self, query: NewSongQuery) -> str | None:
-        item_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, self.bucket_name))
+        item_id = str(uuid.uuid4()) 
 
         file_data = {
             "item_id": item_id,
@@ -226,6 +236,39 @@ class FileStorageManager:
         else:
             logger.info(f"Successfully deleted item {document['item_id']} and its files.")
 
+        
+    async def chceck_playlist_exists(self, playlist: Playlist) -> bool:
+        query = {"user_id": playlist.user_id, "name": playlist.name}
+        document = await self.db["playlists"].find_one(query)
+        return bool(document)
+    
+    async def add_playlist(self, playlist: Playlist) -> str | None:
+        logging.info(f"Adding playlist '{playlist.name}' for user {playlist.user_id} with songs: {playlist.song_urls}")
+        if await self.chceck_playlist_exists(playlist):
+            raise PlaylistAlreadyExistsError(f"Playlist '{playlist.name}' already exists for user {playlist.user_id}.")
+        playlist_data = {
+            "user_id": playlist.user_id,
+            "name": playlist.name,
+            "song_urls": playlist.song_urls,
+        }
+        result = await self.db["playlists"].insert_one(playlist_data)
+        if not result.acknowledged:
+            logging.error(f"Failed to create playlist '{playlist.name}' for user {playlist.user_id}.")
+            raise PlaylistCreationError(f"Failed to create playlist '{playlist.name}' for user {playlist.user_id}.")
+            logging
+        
+        logging.info(f"Playlist '{playlist.name}' created successfully with ID {result.inserted_id}.")
+        return str(result.inserted_id)
+    
+    async def get_playlist(self, user_id: str, playlist_name: str) -> Playlist:
+        query = {"user_id": user_id, "name": playlist_name}
+        logging.info(f"Retrieving playlist '{playlist_name}' for user {user_id}.")
+        document = await self.db["playlists"].find_one(query)
+        if not document:
+            raise PlaylistNotFoundError(f"Playlist '{playlist_name}' not found for user {user_id}.")
+        logging.info(f"Playlist '{playlist_name}' retrieved successfully for user {user_id}.")
+        return Playlist(name=document["name"], user_id=document["user_id"], song_urls=document["song_urls"])
+
 
 class DatabaseDaemon:
 
@@ -292,3 +335,42 @@ class DatabaseDaemon:
 
         self._is_running = False
         logger.info("DatabaserDaemon stopped.")
+        
+class PlaylistError(Exception, ABC):
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+    @staticmethod
+    @abstractmethod
+    def embed(playlist_name: str) -> Embed:
+        pass
+    
+        
+class PlaylistAlreadyExistsError(Exception):
+    @staticmethod
+    def embed(playlist_name: str) -> Embed:
+        message = Embed(title="𝍐 Playlist Already Exists",
+                        description=f"A playlist with the name *\"{playlist_name}\"* already exists.\n\n",
+                        color=ERROR_COLOR)
+        message.set_footer(text="Please choose a different name for your playlist. Or you can delete the existing playlist if you want to replace it.")
+        return message
+
+class PlaylistNotFoundError(PlaylistError):
+    @staticmethod
+    def embed(playlist_name: str) -> Embed:
+        message = Embed(title="𝍐 Playlist Not Found",
+                        description=f"The playlist *\"{playlist_name}\"* was not found.\n\n",
+                        color=ERROR_COLOR)
+        message.set_footer(text="Please check the name and try again.")
+        return message
+    
+class PlaylistCreationError(PlaylistError):
+    @staticmethod
+    def embed(playlist_name: str) -> Embed:
+        message = Embed(title="𝍐 Playlist Creation Error",
+                        description=f"An error occurred while creating the playlist *\"{playlist_name}\"*.\n\n",
+                        color=ERROR_COLOR)
+        message.set_footer(text="Please try again later.")
+        return message
+        
+        

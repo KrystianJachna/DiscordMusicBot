@@ -24,7 +24,7 @@ QUERIES_CACHE_SIZE = 500
 
 # Timeouts
 NO_USERS_DISCONNECT_TIMEOUT = 60 * 20  # 20 minutes
-NO_MUSIC_DISCONNECT_TIMEOUT = 60 * 5  # 5 minutes
+NO_MUSIC_DISCONNECT_TIMEOUT = 60 * 10  # 5 minutes
 
 # MongoDB configuration
 MONGODB_HOST = os.getenv("MONGODB_HOST", "localhost")
@@ -49,9 +49,6 @@ try:
         MONGODB_URI,
         serverSelectionTimeoutMS=5000
     )
-    # Verify connection
-    # Note: This is done asynchronously, so it won't actually verify the connection here
-    # The actual verification will happen when the client is first used
 except Exception as e:
     logging.error(f"Failed to create MongoDB client: {str(e)}")
     mongo_client = None
@@ -64,7 +61,6 @@ try:
         secret_key=MINIO_SECRET_KEY,
         secure=MINIO_SECURE
     )
-    # Note: Connection verification happens when methods are called
 except Exception as e:
     logging.error(f"Failed to create MinIO client: {str(e)}")
     minio_client = None

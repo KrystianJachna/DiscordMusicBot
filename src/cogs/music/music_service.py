@@ -38,6 +38,7 @@ class MusicPlayer:
         if not self._now_playing:
             raise MusicPlayer.NotPlayingException
         self._voice_client.stop()
+        await asyncio.sleep(0.1)
 
     @property
     def loop(self) -> bool:
