@@ -40,17 +40,19 @@ class MusicCog(commands.Cog):
 
     @commands.command(description=CREATE_PLAYLIST_DESCRIPTION)
     async def create_playlist(self, ctx: commands.Context, *, name: str) -> None:
-        music_player = self._servers_music_players[ctx.guild.id]
-        now_playing, queries = await music_player.get_queue_info()
+        music_player = self._servers_music_players.get(ctx.guild.id, None)
+        urls, invalid_queries = [], []
+        if music_player:
+            now_playing, queries = await music_player.get_queue_info()
+            if now_playing: 
+                urls.append(now_playing.url)
 
-        urls, invalid_queries = [now_playing.url] if now_playing else [], []
-
-        for query in queries:
-            try:
-                url = await self._song_downloader.get_url(query)
-                urls.append(url)
-            except DownloaderException:
-                invalid_queries.append(query)
+            for query in queries:
+                try:
+                    url = await self._song_downloader.get_url(query)
+                    urls.append(url)
+                except DownloaderException:
+                    invalid_queries.append(query)
 
         try:
             await self.playlist_storage_manager.add_playlist(
@@ -83,6 +85,23 @@ class MusicCog(commands.Cog):
             await ctx.send(embed=e.embed())
             return
         await ctx.send(embed=playlist_deleted(name))
+       
+    @commands.command(description=UPDATE_PLAYLIST_DESCRIPTION)
+    async def update_playlist(self, ctx: commands.Context, name: str, *, query: str) -> None:
+        try:
+            url = await self._song_downloader.get_url(query)
+        except DownloaderException as e:
+            await ctx.send(embed=e.embed(query))
+            
+        try:
+            await self.playlist_storage_manager.update_playlist(
+                str(ctx.author.id), name, url
+            )
+        except PlaylistDBError as e:
+            await ctx.send(embed=e.embed())
+            return
+        
+        await ctx.send(embed=playlist_updated(name, url))
         
     @commands.command(description=LIST_PLAYLISTS_DESCRIPTION)
     async def list_playlists(self, ctx: commands.Context) -> None:

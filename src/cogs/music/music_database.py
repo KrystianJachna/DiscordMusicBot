@@ -236,11 +236,10 @@ class PlaylistStorageManager:
         await self.create_index()
         return self
 
-    async def create_index(self):
+    async def create_index(self) -> None:
         await self.collection.create_index([("user_id", 1), ("name", 1)], unique=True)
 
-    async def add_playlist(self, playlist_query: PlaylistQuery):
-        logging.info(f"Adding playlist")
+    async def add_playlist(self, playlist_query: PlaylistQuery) -> None:
         playlist_data = {
             "user_id": playlist_query.user_id,
             "name": playlist_query.name,
@@ -261,7 +260,7 @@ class PlaylistStorageManager:
             raise NotFoundPlaylistDBError("Playlist not found for the given user and name.", PlaylistQuery(user_id, name, []))
         return PlaylistQuery(user_id=document["user_id"], name=document["name"], urls=document["urls"])
     
-    async def delete_playlist(self, user_id: str, name: str):
+    async def delete_playlist(self, user_id: str, name: str) -> None:
         query = {"user_id": user_id, "name": name}
         result = await self.collection.delete_one(query)
         if result.deleted_count == 0:
@@ -273,6 +272,15 @@ class PlaylistStorageManager:
         if not documents:
             return []
         return [doc["name"] for doc in documents if "name" in doc]
+    
+    async def update_playlist(self, user_id: str, name: str, url: str) -> None:
+        query = {"user_id": user_id, "name": name}
+        update = {"$addToSet": {"urls": url}}
+        result = await self.collection.update_one(query, update)
+
+        if result.modified_count == 0:
+            raise NotFoundPlaylistDBError("Playlist not found for the given user and name.", PlaylistQuery(user_id, name, []))
+        
         
 
 

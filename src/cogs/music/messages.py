@@ -71,6 +71,11 @@ LIST_PLAYLISTS_DESCRIPTION = (
     "**Usage**: `!list_playlists`"
 )
 
+UPDATE_PLAYLIST_DESCRIPTION = (
+    "Update an existing playlist by adding new songs to it. You can provide a name for the playlist, and it will add all songs in the queue to the playlist.\n"
+    "**Usage**: `!update_playlist <playlist_name>`\n"
+)
+
 
 def added_to_queue(song: Song, queue_elements: int) -> Embed:
     message = Embed(
@@ -238,40 +243,46 @@ def shuffled() -> Embed:
     )
 
 
-def playlist_created(name: str, valid_urls: list[str], invalid_queries: list[str]) -> Embed:
+def playlist_created(
+    name: str, valid_urls: list[str], invalid_queries: list[str]
+) -> Embed:
     message = Embed(
         title="📋 Playlist Created",
         description=f"Playlist Name: **{name}**\n"
         f"Number of Songs: **{len(valid_urls)}**",
         color=SUCCESS_COLOR,
     )
-    message.add_field(
-        name="Songs in Playlist",
-        value="- "
-        + "\n- ".join(valid_urls[:10])
-        + ("\n...and more" if len(valid_urls) > 10 else ""),
-    )
+    if valid_urls:
+        message.add_field(
+            name="Songs in Playlist",
+            value="- "
+            + "\n- ".join(valid_urls[:10])
+            + ("\n...and more" if len(valid_urls) > 10 else ""),
+        )
     if invalid_queries:
         message.add_field(
             name="Invalid Queries",
-            value="- " + "\n- ".join(invalid_queries[:10])
+            value="- "
+            + "\n- ".join(invalid_queries[:10])
             + ("\n...and more" if len(invalid_queries) > 10 else ""),
         )
     return message
 
 
 def playlist_loaded(name: str, playlist: list[str]) -> Embed:
-    message =  Embed(
+    message = Embed(
         title="📋 Playlist Loaded",
         description=f"Playlist **{name}** with **{len(playlist)}** songs has been loaded into the queue.",
         color=SUCCESS_COLOR,
     )
     message.add_field(
         name="Songs in Playlist",
-        value="- " + "\n- ".join(playlist[:10])
+        value="- "
+        + "\n- ".join(playlist[:10])
         + ("\n...and more" if len(playlist) > 10 else ""),
     )
     return message
+
 
 def playlist_deleted(name: str) -> Embed:
     return Embed(
@@ -279,7 +290,8 @@ def playlist_deleted(name: str) -> Embed:
         description=f"Playlist **{name}** has been deleted successfully.",
         color=SUCCESS_COLOR,
     )
-    
+
+
 def list_playlists(playlists: list[str]) -> Embed:
     if not playlists:
         return Embed(
@@ -287,7 +299,7 @@ def list_playlists(playlists: list[str]) -> Embed:
             description="You have no playlists created yet.",
             color=INFO_COLOR,
         )
-    
+
     message = Embed(
         title="📋 Your Playlists",
         description=f"You have **{len(playlists)}** playlists.",
@@ -295,7 +307,16 @@ def list_playlists(playlists: list[str]) -> Embed:
     )
     message.add_field(
         name="Playlists",
-        value="- " + "\n- ".join(playlists[:10])
+        value="- "
+        + "\n- ".join(playlists[:10])
         + ("\n...and more" if len(playlists) > 10 else ""),
     )
     return message
+
+
+def playlist_updated(name: str, url: str) -> Embed:
+    return Embed(
+        title="📋 Playlist Updated",
+        description=f"Playlist **{name}** has been updated with:\n{url}",
+        color=SUCCESS_COLOR,
+    )
