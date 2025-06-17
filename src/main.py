@@ -64,11 +64,23 @@ async def create_file_storage_manager(bucket_name=DEFAULT_BUCKET_NAME, create_bu
         logging.error(f"Failed to create FileStorageManager: {str(e)}")
         return None
 
+async def create_playlist_storage_manager() -> PlaylistStorageManager | None:
+    if mongo_client is None:
+        logging.error("Cannot create PlaylistStorageManager: MongoDB client is not available")
+        return None
+
+    try:
+        playlist_storage_manager = await PlaylistStorageManager.create_async(mongo_client)
+        logging.info("PlaylistStorageManager created successfully")
+        return playlist_storage_manager
+    except Exception as e:
+        logging.error(f"Failed to create PlaylistStorageManager: {str(e)}")
+        return None
 
 async def main() -> None:
     try:
         storage_manager = await create_file_storage_manager()
-        playlist_storage_manager = PlaylistStorageManager(mongo_client)
+        playlist_storage_manager = await create_playlist_storage_manager()
         daemon = DatabaseDaemon(storage_manager, DAEMON_INTERVAL)
         await daemon.start()
         token = load_token()

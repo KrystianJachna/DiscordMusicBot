@@ -51,42 +51,44 @@ class MusicCog(commands.Cog):
                 urls.append(url)
             except DownloaderException:
                 invalid_queries.append(query)
-        logging.info(
-            f"Creating playlist '{name}' for user {ctx.author.id} in guild {ctx.guild.id}. Valid URLs: {urls}, Invalid queries: {invalid_queries}"
-        )
 
         try:
             await self.playlist_storage_manager.add_playlist(
-                PlaylistQuery(ctx.author.id, name, urls)
+                PlaylistQuery(str(ctx.author.id), name, urls)
             )
         except PlaylistDBError as e:
             await ctx.send(embed=e.embed())
+            return
         await ctx.send(embed=playlist_created(name, urls, invalid_queries))
 
-    @commands.command(description="...")  # TODO: Add description
+    @commands.command(description=PLAY_DESCRIPTION)
     async def playlist(self, ctx: commands.Context, *, name: str) -> None:
-        print("kurwy")
-        logging.info(
-            f"Loading playlist '{name}' for user {ctx.author.id} in guild {ctx.guild.id}."
-        )
         music_player = self._servers_music_players[ctx.guild.id]
         try:
-            playlist = await self.storage_manager.get_playlist(str(ctx.author.id), name)
+            playlist = await self.playlist_storage_manager.get_playlist(str(ctx.author.id), name)
         except PlaylistDBError as e:
-            await ctx.send(embed=e.embed(name))
+            await ctx.send(embed=e.embed())
             return
-        except Exception as e:
-            import traceback
-
-            logging.error(
-                f"Unexpected error in playlist command: {e}\n{traceback.format_exc()}"
-            )
-            await ctx.send("An unexpected error occurred while loading the playlist.")
-            return
-        for url in playlist.song_urls:
+        
+        for url in playlist.urls:
             song_request = SongRequest(url, ctx, quiet=True)
             await music_player.play(song_request)
-        await ctx.send(embed=playlist_loaded(playlist.name, len(playlist.song_urls)))
+        await ctx.send(embed=playlist_loaded(playlist.name, playlist.urls))
+
+    @commands.command(description=DELETE_PLAYLIST_DESCRIPTION)
+    async def delete_playlist(self, ctx: commands.Context, *, name: str) -> None:
+        try:
+            await self.playlist_storage_manager.delete_playlist(str(ctx.author.id), name)
+        except PlaylistDBError as e:
+            await ctx.send(embed=e.embed())
+            return
+        await ctx.send(embed=playlist_deleted(name))
+        
+    @commands.command(description=LIST_PLAYLISTS_DESCRIPTION)
+    async def list_playlists(self, ctx: commands.Context) -> None:
+        playlists = await self.playlist_storage_manager.list_playlists(str(ctx.author.id))
+        await ctx.send(embed=list_playlists(playlists))
+            
 
     @commands.command(description=SKIP_DESCRIPTION)
     async def skip(self, ctx: commands.Context) -> None:
@@ -193,6 +195,7 @@ class MusicCog(commands.Cog):
                 await self._stop_music_player(guild_id)
 
     @play.before_invoke
+    @playlist.before_invoke
     async def connect_on_command(self, ctx: commands.Context) -> None:
         if ctx.author.voice is None:
             await ctx.send(embed=not_in_voice_channel())
@@ -212,8 +215,6 @@ class MusicCog(commands.Cog):
     @clear.before_invoke
     @queue.before_invoke
     @shuffle.before_invoke
-    @create_playlist.before_invoke
-    @playlist.before_invoke
     async def ensure_bot_on_voice(self, ctx: commands.Context) -> None:
         if ctx.guild.id not in self._servers_music_players:
             await ctx.send(embed=not_connected())

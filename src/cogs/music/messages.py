@@ -56,6 +56,21 @@ CREATE_PLAYLIST_DESCRIPTION = (
     "**TIP**: The best practise is to pause the music player on the first song before creating a playlist, so that the playlist will contain all songs in the queue.\n"
 )
 
+PLAYLIST_DESCRIPTION = (
+    "Load a playlist into the queue. You can provide a name for the playlist, and it will load all songs in the playlist into the queue.\n"
+    "**Usage**: `!playlist <playlist_name>`\n"
+)
+
+DELETE_PLAYLIST_DESCRIPTION = (
+    "Delete a playlist by its name. This will remove the playlist from the database.\n"
+    "**Usage**: `!delete_playlist <playlist_name>`\n"
+)
+
+LIST_PLAYLISTS_DESCRIPTION = (
+    "List all playlists available for the user. This will show the names of all playlists created by the user.\n"
+    "**Usage**: `!list_playlists`"
+)
+
 
 def added_to_queue(song: Song, queue_elements: int) -> Embed:
     message = Embed(
@@ -245,9 +260,42 @@ def playlist_created(name: str, valid_urls: list[str], invalid_queries: list[str
     return message
 
 
-def playlist_loaded(name: str, song_count: int) -> Embed:
-    return Embed(
+def playlist_loaded(name: str, playlist: list[str]) -> Embed:
+    message =  Embed(
         title="📋 Playlist Loaded",
-        description=f"Playlist **{name}** with **{song_count}** songs has been loaded into the queue.",
+        description=f"Playlist **{name}** with **{len(playlist)}** songs has been loaded into the queue.",
         color=SUCCESS_COLOR,
     )
+    message.add_field(
+        name="Songs in Playlist",
+        value="- " + "\n- ".join(playlist[:10])
+        + ("\n...and more" if len(playlist) > 10 else ""),
+    )
+    return message
+
+def playlist_deleted(name: str) -> Embed:
+    return Embed(
+        title="📋 Playlist Deleted",
+        description=f"Playlist **{name}** has been deleted successfully.",
+        color=SUCCESS_COLOR,
+    )
+    
+def list_playlists(playlists: list[str]) -> Embed:
+    if not playlists:
+        return Embed(
+            title="📋 No Playlists Found",
+            description="You have no playlists created yet.",
+            color=INFO_COLOR,
+        )
+    
+    message = Embed(
+        title="📋 Your Playlists",
+        description=f"You have **{len(playlists)}** playlists.",
+        color=SUCCESS_COLOR,
+    )
+    message.add_field(
+        name="Playlists",
+        value="- " + "\n- ".join(playlists[:10])
+        + ("\n...and more" if len(playlists) > 10 else ""),
+    )
+    return message

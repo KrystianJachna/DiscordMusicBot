@@ -64,10 +64,7 @@ class FileStorageManager:
             if not bucket_exists:
                 await asyncio.to_thread(minio_client.make_bucket, bucket_name)
 
-        if not await instance.collection.index_information():
-            logging.info(f"Creating indexes for collection {collection_name}.")
-            await instance.create_index()
-
+        await instance.create_index()
         return instance
 
     async def create_index(self):
@@ -229,13 +226,15 @@ class PlaylistQuery:
 
 class PlaylistStorageManager:
     
-    def __init__(self, mongo_db_client: AsyncIOMotorClient, db_name: str = "playlists_storage"):
+    def __init__(self, mongo_db_client: AsyncIOMotorClient, db_name: str = "playlists_db"):
         self.db: AsyncIOMotorDatabase = mongo_db_client[db_name]
         self.collection: AsyncIOMotorCollection = self.db["playlists"]
 
-        if not self.collection.index_information():
-            logging.info("Creating indexes for playlists collection.")
-            asyncio.get_event_loop().run_until_complete(self.create_index())
+    @classmethod
+    async def create_async(cls, mongo_db_client: AsyncIOMotorClient, db_name: str = "playlists_db"):
+        self = cls(mongo_db_client, db_name)
+        await self.create_index()
+        return self
 
     async def create_index(self):
         await self.collection.create_index([("user_id", 1), ("name", 1)], unique=True)
@@ -249,7 +248,7 @@ class PlaylistStorageManager:
         }
         try:
             result = await self.collection.insert_one(playlist_data)
-        except Exception as e:
+        except DuplicateKeyError:
             raise ExistingPlaylistDBError("Duplicate playlist name for user.", playlist_query)
             
         if not result.acknowledged:
@@ -259,9 +258,22 @@ class PlaylistStorageManager:
         query = {"user_id": user_id, "name": name}
         document = await self.collection.find_one(query)
         if not document:
-            raise NotFoundPlaylistDBError(f"Playlist {name} not found for user {user_id}.")
-        
+            raise NotFoundPlaylistDBError("Playlist not found for the given user and name.", PlaylistQuery(user_id, name, []))
         return PlaylistQuery(user_id=document["user_id"], name=document["name"], urls=document["urls"])
+    
+    async def delete_playlist(self, user_id: str, name: str):
+        query = {"user_id": user_id, "name": name}
+        result = await self.collection.delete_one(query)
+        if result.deleted_count == 0:
+            raise NotFoundPlaylistDBError("Playlist not found for the given user and name.", PlaylistQuery(user_id, name, []))
+        
+    async def list_playlists(self, user_id: str) -> list[str]:
+        query = {"user_id": user_id}
+        documents = await self.collection.find(query).to_list(length=None)
+        if not documents:
+            return []
+        return [doc["name"] for doc in documents if "name" in doc]
+        
 
 
 class DatabaseDaemon:
@@ -346,7 +358,7 @@ class ExistingPlaylistDBError(PlaylistDBError):
         super().__init__(message, playlist_query)
     
     def embed(self) -> Embed:
-        message = Embed(title="𝍐 Playlist Already Exists",
+        message = Embed(title="🪞 Playlist Already Exists",
                         description=f"A playlist with the name *\"{self.playlist_query.name}\"* already exists.\n\n",
                         color=ERROR_COLOR)
         message.set_footer(text="Please choose a different name for your playlist. Or you can delete the existing playlist if you want to replace it.")
@@ -358,7 +370,7 @@ class NotFoundPlaylistDBError(PlaylistDBError):
         super().__init__(message, playlist_query)
 
     def embed(self) -> Embed:
-        message = Embed(title="𝍐 Playlist Not Found",
+        message = Embed(title="🔍 Playlist Not Found",
                         description=f"The playlist *\"{self.playlist_query.name}\"* was not found.\n\n",
                         color=ERROR_COLOR)
         message.set_footer(text="Please check the name and try again.")
@@ -370,7 +382,7 @@ class CreationPlaylistDBError(PlaylistDBError):
         super().__init__(message, playlist_query)
 
     def embed(self) -> Embed:
-        message = Embed(title="𝍐 Playlist Creation Error",
+        message = Embed(title="🔴 Playlist Creation Error",
                         description=f"An error occurred while creating the playlist *\"{self.playlist_query.name}\"*.\n\n",
                         color=ERROR_COLOR)
         message.set_footer(text="Please try again later.")

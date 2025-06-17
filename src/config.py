@@ -26,7 +26,7 @@ QUERIES_CACHE_SIZE = 500
 NO_USERS_DISCONNECT_TIMEOUT = 60 * 20  # 20 minutes
 NO_MUSIC_DISCONNECT_TIMEOUT = 60 * 10  # 5 minutes
 DAEMON_INTERVAL = 60 * 60  # 1 hour
-DB_MUSIC_EXPIRE_TIMEOUT = 60 * 60 * 24  # 1 day
+DB_MUSIC_EXPIRE_TIMEOUT = 60 * 24  # 1 day
 
 # MongoDB configuration
 MONGODB_HOST = os.getenv("MONGODB_HOST", "localhost")
