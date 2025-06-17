@@ -286,9 +286,10 @@ class PlaylistStorageManager:
 
 class DatabaseDaemon:
 
-    def __init__(self, file_storage_manager: FileStorageManager, interval_seconds: int = 60 * 5):
+    def __init__(self, file_storage_manager: FileStorageManager, interval_seconds: int = 60 * 5, expiration_time_minutes: int = 60 * 24):
         self.file_storage_manager = file_storage_manager
         self.interval_seconds = interval_seconds
+        self.expiration_time_minutes = expiration_time_minutes
 
         self._daemon_task = None
         self._is_running = False
@@ -297,7 +298,7 @@ class DatabaseDaemon:
     async def cleanup(self):
         deleted_count = 0
         try:
-            expiration_time = datetime.now(ZoneInfo("UTC")) - timedelta(seconds=self.interval_seconds)
+            expiration_time = datetime.now(ZoneInfo("UTC")) - timedelta(minutes=self.expiration_time_minutes)
             query = {
                 "$or": [
                     {"modification_date": {"$lt": expiration_time}},
@@ -357,7 +358,7 @@ class PlaylistDBError(Exception, ABC):
         self.playlist_query = playlist_query
 
     @abstractmethod
-    def embed() -> Embed:
+    def embed(self) -> Embed:
         pass
         
 class ExistingPlaylistDBError(PlaylistDBError):
