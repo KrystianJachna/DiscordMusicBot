@@ -1,4 +1,3 @@
-
 import discord
 from discord.ext import commands, tasks
 
@@ -7,14 +6,19 @@ from cogs.music.music_service import MusicPlayer
 from cogs.music.song_queue import BgDownloadSongQueue
 from cogs.music.song_cache import LRUSongsCache
 from cogs.music.music_downloader import YouTubeSongInfoProvider, DownloaderException
-from .music_database import FileStorageManager, Playlist, PlaylistError
+from .music_database import FileStorageManager, PlaylistQuery, PlaylistDBError, PlaylistStorageManager
 from config import *
 from .song import SongRequest
 
 
 class MusicCog(commands.Cog):
 
-    def __init__(self, bot: commands.Bot, storage_manager: FileStorageManager) -> None:
+    def __init__(
+        self,
+        bot: commands.Bot,
+        storage_manager: FileStorageManager,
+        playlist_storage_manager: PlaylistStorageManager,
+    ) -> None:
         self._bot = bot
         self._servers_music_players: dict[int, MusicPlayer] = (
             {}
@@ -23,6 +27,7 @@ class MusicCog(commands.Cog):
             LRUSongsCache(CACHE_SIZE, QUERIES_CACHE_SIZE), storage_manager
         )
         self.storage_manager = storage_manager
+        self.playlist_storage_manager = playlist_storage_manager
 
         self.monitor_music_player_status.start()
         self.check_listeners.start()
@@ -33,49 +38,32 @@ class MusicCog(commands.Cog):
         song_request = SongRequest(search, ctx)
         await music_player.play(song_request)
 
-    # @commands.command(description="...")
-    # async def create_playlist(self, ctx: commands.Context, *, name: str) -> None:
-    #     music_player = self._servers_music_players[ctx.guild.id]
-    #     now_playing, queries = await music_player.get_queue_info()
-    #     queries_urls = [now_playing.url] + [
-    #         url for url in await asyncio.gather(
-    #             *(asyncio.to_thread(self._song_downloader.get_url, query) for query in queries),
-    #             return_exceptions=True
-    #         )
-    #     ]
-    #     logging.info(f"Creating playlist '{name}' for user {ctx.author.id} with {queries_urls} songs.")
-    #     try:
-    #         await self.storage_manager.add_playlist(Playlist(name, ctx.author.id, queries_urls))
-    #         logging.info(f"Playlist '{name}' created successfully.")
-    #         await ctx.send(embed=playlist_created(name, queries_urls))
-    #     except PlaylistError as e:
-    #         await ctx.send(embed=e.embed(name))
-
-    @commands.command(description="...")
+    @commands.command(description=CREATE_PLAYLIST_DESCRIPTION)
     async def create_playlist(self, ctx: commands.Context, *, name: str) -> None:
-        if ctx.guild.id not in self._servers_music_players:
-            await ctx.send("Bot is not connected to a voice channel.")
-            return
-
         music_player = self._servers_music_players[ctx.guild.id]
         now_playing, queries = await music_player.get_queue_info()
 
+        urls, invalid_queries = [now_playing.url] if now_playing else [], []
+
+        for query in queries:
+            try:
+                url = await self._song_downloader.get_url(query)
+                urls.append(url)
+            except DownloaderException:
+                invalid_queries.append(query)
+        logging.info(
+            f"Creating playlist '{name}' for user {ctx.author.id} in guild {ctx.guild.id}. Valid URLs: {urls}, Invalid queries: {invalid_queries}"
+        )
+
         try:
-            urls = []
-            urls.append(now_playing.url)
-            for query in queries:
-                try:
-                    url = await self._song_downloader.get_url(query)
-                    urls.append(url)
-                except DownloaderException:
-                    continue
+            await self.playlist_storage_manager.add_playlist(
+                PlaylistQuery(ctx.author.id, name, urls)
+            )
+        except PlaylistDBError as e:
+            await ctx.send(embed=e.embed())
+        await ctx.send(embed=playlist_created(name, urls, invalid_queries))
 
-            await self.storage_manager.add_playlist(Playlist(name, ctx.author.id, urls))
-        except PlaylistError as e:
-            await ctx.send(embed=e.embed(name))
-        await ctx.send(embed=playlist_created(name, urls))
-
-    @commands.command(description="...")
+    @commands.command(description="...")  # TODO: Add description
     async def playlist(self, ctx: commands.Context, *, name: str) -> None:
         print("kurwy")
         logging.info(
@@ -84,7 +72,7 @@ class MusicCog(commands.Cog):
         music_player = self._servers_music_players[ctx.guild.id]
         try:
             playlist = await self.storage_manager.get_playlist(str(ctx.author.id), name)
-        except PlaylistError as e:
+        except PlaylistDBError as e:
             await ctx.send(embed=e.embed(name))
             return
         except Exception as e:
@@ -223,6 +211,9 @@ class MusicCog(commands.Cog):
     @loop.before_invoke
     @clear.before_invoke
     @queue.before_invoke
+    @shuffle.before_invoke
+    @create_playlist.before_invoke
+    @playlist.before_invoke
     async def ensure_bot_on_voice(self, ctx: commands.Context) -> None:
         if ctx.guild.id not in self._servers_music_players:
             await ctx.send(embed=not_connected())

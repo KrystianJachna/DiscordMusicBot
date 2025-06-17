@@ -50,6 +50,12 @@ CLEAR_DESCRIPTION = (
 
 SHUFFLE_DESCRIPTION = "Shuffle the songs in the queue.\n" "**Usage**: `!shuffle`"
 
+CREATE_PLAYLIST_DESCRIPTION = (
+    "Create a playlist from the current queue. You can provide a name for the playlist, and it will save all songs in the queue.\n"
+    "**Usage**: `!create_playlist <playlist_name>`\n"
+    "**TIP**: The best practise is to pause the music player on the first song before creating a playlist, so that the playlist will contain all songs in the queue.\n"
+)
+
 
 def added_to_queue(song: Song, queue_elements: int) -> Embed:
     message = Embed(
@@ -217,19 +223,25 @@ def shuffled() -> Embed:
     )
 
 
-def playlist_created(name: str, queries_urls: list[str]) -> Embed:
+def playlist_created(name: str, valid_urls: list[str], invalid_queries: list[str]) -> Embed:
     message = Embed(
         title="📋 Playlist Created",
         description=f"Playlist Name: **{name}**\n"
-        f"Number of Songs: **{len(queries_urls)}**",
+        f"Number of Songs: **{len(valid_urls)}**",
         color=SUCCESS_COLOR,
     )
     message.add_field(
         name="Songs in Playlist",
         value="- "
-        + "\n- ".join(queries_urls[:10])
-        + ("\n...and more" if len(queries_urls) > 10 else ""),
+        + "\n- ".join(valid_urls[:10])
+        + ("\n...and more" if len(valid_urls) > 10 else ""),
     )
+    if invalid_queries:
+        message.add_field(
+            name="Invalid Queries",
+            value="- " + "\n- ".join(invalid_queries[:10])
+            + ("\n...and more" if len(invalid_queries) > 10 else ""),
+        )
     return message
 
 

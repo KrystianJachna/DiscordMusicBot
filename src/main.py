@@ -8,7 +8,7 @@ from utils import load_token, setup_logging
 from cogs.music.music_cog import MusicCog
 from help_message import HelpMessage
 from config import DAEMON_INTERVAL, ERROR_COLOR, DEFAULT_BUCKET_NAME, mongo_client, minio_client
-from cogs.music.music_database import DatabaseDaemon, FileStorageManager
+from cogs.music.music_database import DatabaseDaemon, FileStorageManager, PlaylistStorageManager
 
 intents = discord.Intents.default()
 intents.message_content = True  # Required for commands to be able to read arguments
@@ -43,7 +43,7 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
                                            description=f"Type `!help {ctx.command.name}` for more information",
                                            color=ERROR_COLOR))
     else:
-        logging.error(f"Error occurred in command: {ctx.command}", exc_info=True)
+        logging.error(f"Error occurred in command: {ctx.command}, details: {error}")
 
 
 async def create_file_storage_manager(bucket_name=DEFAULT_BUCKET_NAME, create_bucket=True) -> FileStorageManager | None:
@@ -68,12 +68,13 @@ async def create_file_storage_manager(bucket_name=DEFAULT_BUCKET_NAME, create_bu
 async def main() -> None:
     try:
         storage_manager = await create_file_storage_manager()
+        playlist_storage_manager = PlaylistStorageManager(mongo_client)
         daemon = DatabaseDaemon(storage_manager, DAEMON_INTERVAL)
         await daemon.start()
         token = load_token()
         setup_logging(logging.INFO, enable_file_logging=True)
         async with bot:
-            await bot.add_cog(MusicCog(bot, storage_manager))
+            await bot.add_cog(MusicCog(bot, storage_manager, playlist_storage_manager))
             await bot.start(token)
     except discord.LoginFailure:
         logging.error("Failed to log in. Ensure the token is correct.")
