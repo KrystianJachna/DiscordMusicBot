@@ -7,8 +7,8 @@ import logging
 from utils import load_token, setup_logging
 from cogs.music.music_cog import MusicCog
 from help_message import HelpMessage
-from config import ERROR_COLOR, DEFAULT_BUCKET_NAME, mongo_client, minio_client
-from cogs.music.music_database import FileStorageManager
+from config import DAEMON_INTERVAL, ERROR_COLOR, DEFAULT_BUCKET_NAME, mongo_client, minio_client
+from cogs.music.music_database import DatabaseDaemon, FileStorageManager
 
 intents = discord.Intents.default()
 intents.message_content = True  # Required for commands to be able to read arguments
@@ -68,9 +68,8 @@ async def create_file_storage_manager(bucket_name=DEFAULT_BUCKET_NAME, create_bu
 async def main() -> None:
     try:
         storage_manager = await create_file_storage_manager()
-        # TODO: Uncomment the following lines if you want to run a database daemon
-        # daemon = DatabaseDaemon(storage_manager)
-        # await daemon.start()
+        daemon = DatabaseDaemon(storage_manager, DAEMON_INTERVAL)
+        await daemon.start()
         token = load_token()
         setup_logging(logging.INFO, enable_file_logging=True)
         async with bot:

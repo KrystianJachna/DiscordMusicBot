@@ -202,7 +202,7 @@ class YouTubeSongInfoProvider(YTDLOptionsProvider):
                 f"Loading song with unique ID {unique_service_id} from storage."
             )
             stored_music_file = await self._storage_manager.get_item_by_service_id(
-                unique_service_id, 24 * 60
+                unique_service_id, DB_MUSIC_EXPIRE_TIMEOUT
             )
             return to_song(stored_music_file, url)
         logging.info(
