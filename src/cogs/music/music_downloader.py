@@ -42,24 +42,29 @@ class SongDownloader:
         r"(?:https?://)?(?:www\.)?youtube\.com/(?:playlist\?list=|watch\?.*?list=)(.*?)(?:&|$)"
     )
     _yt_dlp_opts = {
-        'format': 'bestaudio/best',
-        'quiet': False,
-        'match_filter': '!is_live',
-        'logger': YtDlpLogger(),
+        "format": "bestaudio/best",
+        "quiet": False,
+        "match_filter": "!is_live",
+        "logger": YtDlpLogger(),
+        "js_runtimes": {"node": {}},
     }
 
     def __init__(self, song_cache: SongsCache):
-        self._load_cookies(COOKIES_PATH)  # cookies are required to be able to download age-restricted songs
+        self._load_cookies(
+            COOKIES_PATH
+        )  # cookies are required to be able to download age-restricted songs
         self._song_cache: SongsCache = song_cache
 
     def _load_cookies(self, cookies_path: Path) -> None:
         if cookies_path.exists():
             logging.info(f"Cookies file loaded from {str(cookies_path)}")
-            self._yt_dlp_opts['cookiefile'] = str(cookies_path)
+            self._yt_dlp_opts["cookiefile"] = str(cookies_path)
         else:
-            logging.info("Cookies file not found. "
-                         "Create a cookies.txt file in the root directory for age-restricted songs. "
-                         "See README.md for details.")
+            logging.info(
+                "Cookies file not found. "
+                "Create a cookies.txt file in the root directory for age-restricted songs. "
+                "See README.md for details."
+            )
 
     async def prepare_song(self, query: str) -> Song:
         if query in self._song_cache:
@@ -80,18 +85,21 @@ class SongDownloader:
                     raise AgeRestrictedException(query)
                 raise NoResultsFoundException(query)
 
-        if info.get('is_live', False):
+        if info.get("is_live", False):
             raise LiveFoundException(query)
 
-        return Song(title=info['title'],
-                    url=url,
-                    duration=info['duration'],
-                    thumbnail=info['thumbnails'][0]['url'],
-                    expires_at=(
-                        int(info['url'].split("expire=")[1].split("&")[0])
-                        if "expire=" in info['url'] else None
-                    ),
-                    _stream_url=info['url'])
+        return Song(
+            title=info["title"],
+            url=url,
+            duration=info["duration"],
+            thumbnail=info["thumbnails"][0]["url"],
+            expires_at=(
+                int(info["url"].split("expire=")[1].split("&")[0])
+                if "expire=" in info["url"]
+                else None
+            ),
+            _stream_url=info["url"],
+        )
 
     def _get_url(self, query: str) -> str:
         if self._youtube_playlist_regex.match(query):
@@ -99,17 +107,20 @@ class SongDownloader:
         if self._youtube_regex.match(query):
             return query
         search = YoutubeSearch(query, max_results=1).to_dict()
-        if not search: raise NoResultsFoundException(query)
+        if not search:
+            raise NoResultsFoundException(query)
         return f"https://www.youtube.com/watch?v={search[0]['id']}"
 
 
 class PlaylistExtractor:
-    _playlist_id_regex = re.compile(r"(?:https?://)?(?:www\.)?youtube\.com/.*?list=([a-zA-Z0-9_-]+)")
+    _playlist_id_regex = re.compile(
+        r"(?:https?://)?(?:www\.)?youtube\.com/.*?list=([a-zA-Z0-9_-]+)"
+    )
     _index_regex = re.compile(r"index=(\d+)")
     _ydl_opts = {
-        'extract_flat': True,
-        'quiet': True,
-        'logger': YtDlpLogger(),
+        "extract_flat": True,
+        "quiet": True,
+        "logger": YtDlpLogger(),
     }
 
     def __init__(self, url):
@@ -125,21 +136,30 @@ class PlaylistExtractor:
                     raise YoutubeMixFoundException(self._playlist_url)
                 raise PlaylistNotFoundError(self._playlist_url)
 
-        return PlaylistRequest(title=playlist_info['title'],
-                               thumbnail=playlist_info['thumbnails'][0]['url'],
-                               total_duration=self._calculate_duration(playlist_info['entries']),
-                               length=len(playlist_info['entries']),
-                               songs=self._get_song_requests(playlist_info['entries'], song_request),
-                               playlist_url=self._playlist_url)
+        return PlaylistRequest(
+            title=playlist_info["title"],
+            thumbnail=playlist_info["thumbnails"][0]["url"],
+            total_duration=self._calculate_duration(playlist_info["entries"]),
+            length=len(playlist_info["entries"]),
+            songs=self._get_song_requests(playlist_info["entries"], song_request),
+            playlist_url=self._playlist_url,
+        )
 
     @staticmethod
     def _calculate_duration(entries: list[dict]) -> int:
-        return sum(video['duration'] for video in entries if video["duration"])
+        return sum(video["duration"] for video in entries if video["duration"])
 
-    def _get_song_requests(self, entries: list[dict], song_request: SongRequest) -> list[SongRequest]:
-        requests = [SongRequest(video['url'], song_request.ctx, quiet=True, _title=video['title']) for video in entries]
+    def _get_song_requests(
+        self, entries: list[dict], song_request: SongRequest
+    ) -> list[SongRequest]:
+        requests = [
+            SongRequest(
+                video["url"], song_request.ctx, quiet=True, _title=video["title"]
+            )
+            for video in entries
+        ]
         if self._index is not None:
-            requests = requests[self._index:] + requests[:self._index]
+            requests = requests[self._index :] + requests[: self._index]
         return requests
 
     def _get_playlist_url(self, url: str) -> str:
@@ -154,7 +174,6 @@ class PlaylistExtractor:
 
 
 class DownloaderException(Exception, ABC):
-
     def __init__(self, message: str) -> None:
         super().__init__(message)
 
@@ -167,32 +186,42 @@ class DownloaderException(Exception, ABC):
 class NoResultsFoundException(DownloaderException):
     @staticmethod
     def embed(query: str) -> Embed:
-        message = Embed(title="🔍 No Results Found",
-                        description=f"We couldn't find any results for: *\"{query}\"*\n\n",
-                        color=ERROR_COLOR)
-        message.set_footer(text="💡Tip: Try using different keywords or check your spelling")
+        message = Embed(
+            title="🔍 No Results Found",
+            description=f'We couldn\'t find any results for: *"{query}"*\n\n',
+            color=ERROR_COLOR,
+        )
+        message.set_footer(
+            text="💡Tip: Try using different keywords or check your spelling"
+        )
         return message
 
 
 class LiveFoundException(DownloaderException):
     @staticmethod
     def embed(query: str) -> Embed:
-        message = Embed(title="🎥 Live Stream",
-                        description=f"Found a live stream for: *\"{query}\"*\n"
-                                    f"We currently do not support live streams",
-                        color=ERROR_COLOR)
-        message.set_footer(text="💡Tip: Try using different keywords or search for a different song")
+        message = Embed(
+            title="🎥 Live Stream",
+            description=f'Found a live stream for: *"{query}"*\n'
+            f"We currently do not support live streams",
+            color=ERROR_COLOR,
+        )
+        message.set_footer(
+            text="💡Tip: Try using different keywords or search for a different song"
+        )
         return message
 
 
 class AgeRestrictedException(DownloaderException):
     @staticmethod
     def embed(query: str) -> Embed:
-        message = Embed(title=" 🔞 Age Restricted Content",
-                        description=f"The song: *\"{query}\"* is age restricted. "
-                                    "Please provide a `cookies.txt` file in the root directory to play the song\n\n"
-                                    "See `README.md` for details",
-                        color=ERROR_COLOR)
+        message = Embed(
+            title=" 🔞 Age Restricted Content",
+            description=f'The song: *"{query}"* is age restricted. '
+            "Please provide a `cookies.txt` file in the root directory to play the song\n\n"
+            "See `README.md` for details",
+            color=ERROR_COLOR,
+        )
         message.set_footer(text="💡Tip: Search for a different song")
         return message
 
@@ -200,21 +229,27 @@ class AgeRestrictedException(DownloaderException):
 class PlaylistFoundException(DownloaderException):
     @staticmethod
     def embed(query: str) -> Embed:
-        message = Embed(title="📋 Playlist Found",
-                        description=f"Found a playlist for: *\"{query}\"*\n",
-                        color=ERROR_COLOR)
-        message.set_footer(text="💡Tip: Provide a direct link to a song or search for a different song")
+        message = Embed(
+            title="📋 Playlist Found",
+            description=f'Found a playlist for: *"{query}"*\n',
+            color=ERROR_COLOR,
+        )
+        message.set_footer(
+            text="💡Tip: Provide a direct link to a song or search for a different song"
+        )
         return message
 
 
 class YoutubeMixFoundException(DownloaderException):
     @staticmethod
     def embed(query: str) -> Embed:
-        message = Embed(title="🎧 Youtube Mix Found",
-                        description=f"Found a Youtube Mix for: *\"{query}\"*\n"
-                                    "Youtube Mixes are prepared by Youtube for a specific user"
-                                    " and we currently do not support them",
-                        color=ERROR_COLOR)
+        message = Embed(
+            title="🎧 Youtube Mix Found",
+            description=f'Found a Youtube Mix for: *"{query}"*\n'
+            "Youtube Mixes are prepared by Youtube for a specific user"
+            " and we currently do not support them",
+            color=ERROR_COLOR,
+        )
         message.set_footer(text="💡Tip: Search for a different playlist")
         return message
 
@@ -222,9 +257,11 @@ class YoutubeMixFoundException(DownloaderException):
 class PlaylistNotFoundError(DownloaderException):
     @staticmethod
     def embed(query: str) -> Embed:
-        message = Embed(title="📋 Playlist Not Found",
-                        description=f"We couldn't find any playlist for: *\"{query}\"*\n\n",
-                        color=ERROR_COLOR)
+        message = Embed(
+            title="📋 Playlist Not Found",
+            description=f'We couldn\'t find any playlist for: *"{query}"*\n\n',
+            color=ERROR_COLOR,
+        )
         message.set_footer(text="💡Tip: Check the playlist link and try again")
         return message
 
@@ -232,8 +269,10 @@ class PlaylistNotFoundError(DownloaderException):
 class PlaylistInfoExtractorError(DownloaderException):
     @staticmethod
     def embed(query: str) -> Embed:
-        message = Embed(title="⛔ Playlist Info Error",
-                        description=f"An error occurred while extracting playlist info for: *\"{query}\"*\n\n",
-                        color=ERROR_COLOR)
+        message = Embed(
+            title="⛔ Playlist Info Error",
+            description=f'An error occurred while extracting playlist info for: *"{query}"*\n\n',
+            color=ERROR_COLOR,
+        )
         message.set_footer(text="💡Tip: Search for a different playlist")
         return message

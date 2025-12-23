@@ -2,10 +2,10 @@ FROM python:3.10-slim
 
 ENV PYTHONUNBUFFERED=1
 
-RUN apt-get -y update &&  \
-    apt-get install -y ffmpeg &&  \
-    apt-get clean  \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get -y update && \
+    apt-get install -y --no-install-recommends ffmpeg nodejs npm && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
