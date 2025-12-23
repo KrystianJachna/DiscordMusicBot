@@ -125,6 +125,7 @@ class PlaylistExtractor:
 
     def __init__(self, url):
         self._index = self._extract_index(url)
+        self._direct_url = self._extract_direct_video_url(url)
         self._playlist_url = self._get_playlist_url(url)
 
     async def get_playlist_requests(self, song_request: SongRequest) -> PlaylistRequest:
@@ -144,6 +145,12 @@ class PlaylistExtractor:
             songs=self._get_song_requests(playlist_info["entries"], song_request),
             playlist_url=self._playlist_url,
         )
+
+    def _extract_direct_video_url(self, url: str) -> str:
+        return re.sub(r"&list=[^&]+.*$", "", url)
+    
+    def get_single_video_url(self) -> str:
+        return self._direct_url
 
     @staticmethod
     def _calculate_duration(entries: list[dict]) -> int:

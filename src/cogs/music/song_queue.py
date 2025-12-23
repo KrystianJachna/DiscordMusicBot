@@ -4,8 +4,14 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from .messages import *
-from .music_downloader import SongDownloader, DownloaderException, PlaylistFoundException, PlaylistExtractor, \
-    PlaylistNotFoundError
+from .music_downloader import (
+    SongDownloader,
+    DownloaderException,
+    PlaylistFoundException,
+    PlaylistExtractor,
+    PlaylistNotFoundError,
+    YoutubeMixFoundException,
+)
 from .song import SongRequest
 from random import shuffle
 
@@ -41,7 +47,6 @@ class SongQueue(ABC):
 
 
 class BgDownloadSongQueue(SongQueue):
-
     def __init__(self, song_downloader: SongDownloader):
         self._music_downloader = song_downloader
         self._downloaded_songs: list[Song] = []
@@ -73,7 +78,9 @@ class BgDownloadSongQueue(SongQueue):
         self._song_available.clear()
 
     async def get_queue_info(self) -> list[str]:
-        return [song.title for song in self._downloaded_songs] + [sr.title for sr in self._waiting_queries]
+        return [song.title for song in self._downloaded_songs] + [
+            sr.title for sr in self._waiting_queries
+        ]
 
     async def queue_length(self) -> int:
         return len(await self.get_queue_info())
@@ -95,9 +102,17 @@ class BgDownloadSongQueue(SongQueue):
                 except PlaylistFoundException:
                     try:
                         playlist_extractor = PlaylistExtractor(song_request.title)
-                        playlist = await playlist_extractor.get_playlist_requests(song_request)
+                        playlist = await playlist_extractor.get_playlist_requests(
+                            song_request
+                        )
                         self._waiting_queries.extend(playlist.songs)
                         embed_message = added_playlist_to_queue(playlist)
+                    except YoutubeMixFoundException as e:
+                        direct_video_url = playlist_extractor.get_single_video_url()
+                        new_song_request = SongRequest(
+                            direct_video_url, song_request.ctx
+                        )
+                        self._waiting_queries.insert(0, new_song_request)
                     except DownloaderException as e:
                         embed_message = e.embed(song_request.title)
                 except DownloaderException as e:
@@ -108,7 +123,7 @@ class BgDownloadSongQueue(SongQueue):
                     embed_message = download_error(song_request.title)
                     logging.error(e, exc_info=True)
                 finally:
-                    if not song_request.quiet:
+                    if not song_request.quiet and embed_message:
                         await song_request.ctx.send(embed=embed_message)
                     self._waiting_queries.remove(song_request)
         except asyncio.CancelledError:
