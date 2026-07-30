@@ -29,7 +29,8 @@ class LRUSongsCache(SongsCache):
     """
 
     _youtube_regex = re.compile(
-        r"https?://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)([\w\-_]*)(&(amp;)?‌​[\w?‌​=]*)?"
+        r"^https?://(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)[\w-]+(?:[&?].*)?$",
+        re.IGNORECASE,
     )
 
     def __init__(self, songs_size: int, queries_size: int):
@@ -50,7 +51,7 @@ class LRUSongsCache(SongsCache):
 
         current_time = int(time())
 
-        if song.expires_at + song.duration > current_time:
+        if song.expires_at is None or song.expires_at + (song.duration or 0) > current_time:
             return True
         else:
             del self._url_cache[song_url]

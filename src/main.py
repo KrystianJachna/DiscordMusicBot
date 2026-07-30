@@ -3,19 +3,33 @@ import asyncio
 import discord
 from discord.ext import commands
 import logging
-from utils import load_token, setup_logging
-from cogs.music.music_cog import MusicCog
-from help_message import HelpMessage
-from config import *
+try:
+    from src.utils import load_token, setup_logging
+    from src.cogs.music.music_cog import MusicCog
+    from src.help_message import HelpMessage
+    from src.config import *
+except ModuleNotFoundError:  # supports `python src/main.py` as well
+    from utils import load_token, setup_logging
+    from cogs.music.music_cog import MusicCog
+    from help_message import HelpMessage
+    from config import *
 
 intents = discord.Intents.default()
 intents.message_content = True  # Required for commands to be able to read arguments
 
-bot: commands.Bot = commands.Bot(
+class MusicBot(commands.Bot):
+    async def setup_hook(self) -> None:
+        await self.add_cog(MusicCog(self))
+        # setup_hook runs after login, so application_id is available here.
+        synced_commands = await self.tree.sync()
+        logging.info("Synchronized %d application commands", len(synced_commands))
+
+
+bot: commands.Bot = MusicBot(
     command_prefix="!",
-    description="Music bot for Discord, built with discord.py and youtube-dl",
+    description="Music bot for Discord, built with discord.py and yt-dlp",
     intents=intents,
-    help_command=HelpMessage()
+    help_command=HelpMessage(),
 )
 
 
@@ -49,7 +63,6 @@ async def main() -> None:
         token = load_token()
         setup_logging(logging.INFO, enable_file_logging=True)
         async with bot:
-            await bot.add_cog(MusicCog(bot))
             await bot.start(token)
     except discord.LoginFailure:
         logging.error("Failed to log in. Ensure the token is correct.")

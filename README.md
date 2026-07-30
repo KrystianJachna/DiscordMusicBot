@@ -102,10 +102,13 @@ Here are the available commands:
     - `!resume`: Resume the current song.
     - `!skip`: Skip the current song.
     - `!stop`: Stop the music and leave the voice channel.
+    - `!nowplaying`: Show the currently playing song and volume.
+    - `!volume <0-200>`: Change the playback volume.
 
 - **Queue Management**:
     - `!queue`: Display the current queue of songs.
     - `!clear`: Clear the queue of songs.
+    - `!remove <number>`: Remove a queued song by its position.
 
 - **Other**:
     - `!loop`: Toggle the loop mode for the entire queue (on/off).

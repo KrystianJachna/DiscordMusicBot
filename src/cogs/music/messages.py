@@ -6,7 +6,10 @@ from discord import Embed
 from .song import PlaylistRequest
 from .music_downloader import Song
 
-from config import *
+try:
+    from src.config import *
+except ModuleNotFoundError:
+    from config import *
 
 PLAY_DESCRIPTION = (
     "Play a song directly from YouTube or add it to the queue. You can provide a direct video link, a playlist link, or even a search query. "
@@ -53,6 +56,46 @@ SHUFFLE_DESCRIPTION = (
     "Shuffle the songs in the queue.\n"
     "**Usage**: `!shuffle`"
 )
+
+def now_playing(song: Song, volume: float) -> Embed:
+    message = Embed(title="🎶 Teraz odtwarzane", description=f"[{song.title}]({song.url})", color=SUCCESS_COLOR)
+    message.add_field(name="Głośność", value=f"{round(volume * 100)}%")
+    message.add_field(name="Czas", value=str(timedelta(seconds=song.duration or 0)))
+    if song.thumbnail:
+        message.set_thumbnail(url=song.thumbnail)
+    return message
+
+def removed_from_queue(title: str) -> Embed:
+    return Embed(title="🗑️ Usunięto z kolejki", description=title, color=SUCCESS_COLOR)
+
+def invalid_queue_position() -> Embed:
+    return Embed(title="⛔ Nieprawidłowy numer", description="Podaj numer utworu istniejącego w kolejce.", color=ERROR_COLOR)
+
+def volume_changed(value: int) -> Embed:
+    return Embed(title="🔊 Głośność zmieniona", description=f"Ustawiono głośność na **{value}%**.", color=SUCCESS_COLOR)
+
+def invalid_volume() -> Embed:
+    return Embed(title="⛔ Nieprawidłowa głośność", description="Wartość musi być między 0 a 200.", color=ERROR_COLOR)
+
+def voice_connection_error() -> Embed:
+    return Embed(
+        title="🔌 Nie udało się połączyć z kanałem głosowym",
+        description=(
+            "Discord odrzucił połączenie głosowe. Sprawdź, czy bot ma uprawnienia "
+            "**Connect** i **Speak**, a następnie spróbuj ponownie za chwilę."
+        ),
+        color=ERROR_COLOR,
+    )
+
+def voice_e2ee_error() -> Embed:
+    return Embed(
+        title="🔐 Discord wymaga szyfrowania DAVE",
+        description=(
+            "Klient głosowy nie obsłużył szyfrowania E2EE/DAVE. "
+            "Zaktualizuj obraz Dockera i uruchom bota ponownie."
+        ),
+        color=ERROR_COLOR,
+    )
 
 def added_to_queue(song: Song, queue_elements: int) -> Embed:
     message = Embed(title=" 🎶 Song Added to Queue",

@@ -1,6 +1,9 @@
 from discord import Embed
 from discord.ext import commands
-from config import INFO_COLOR
+try:
+    from src.config import INFO_COLOR
+except ModuleNotFoundError:
+    from config import INFO_COLOR
 
 
 class HelpMessage(commands.HelpCommand):

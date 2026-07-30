@@ -1,6 +1,6 @@
 from typing import Optional
 from dataclasses import dataclass
-from discord import FFmpegPCMAudio
+from discord import FFmpegPCMAudio, PCMVolumeTransformer
 from discord.ext import commands
 
 
@@ -18,10 +18,13 @@ class Song:
         'options': '-vn'
     }
 
-    async def get_source(self) -> FFmpegPCMAudio:
+    async def get_source(self, volume: float = 1.0) -> PCMVolumeTransformer:
         # every time get_source is called, the FFPCMAudio object is created
         # it has to be created every time because it is not reusable
-        return FFmpegPCMAudio(self._stream_url, **self._ffmpeg_options)
+        if not self._stream_url:
+            raise ValueError("Song has no playable stream URL")
+        source = FFmpegPCMAudio(self._stream_url, **self._ffmpeg_options)
+        return PCMVolumeTransformer(source, volume=max(0.0, min(volume, 2.0)))
 
 
 @dataclass

@@ -20,4 +20,4 @@ COPY Dockerfile cookies.txt* /app/
 
 COPY ./src /app/src
 
-CMD ["python", "./src/main.py"]
+CMD ["python", "-m", "src.main"]

@@ -3,14 +3,15 @@ import re
 import logging
 from typing import Optional
 
-from youtube_search import YoutubeSearch
-
 import yt_dlp
 from .song_cache import SongsCache
 from .song import Song, SongRequest, PlaylistRequest
 from abc import ABC, abstractmethod
 from discord import Embed
-from config import *
+try:
+    from src.config import *
+except ModuleNotFoundError:
+    from config import *
 
 
 class YtDlpLogger:
@@ -36,12 +37,13 @@ class YtDlpLogger:
 
 class SongDownloader:
     _youtube_regex = re.compile(
-        r"https?://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)([\w\-_]*)(&(amp;)?‌​[\w?‌​=]*)?"
+        r"^https?://(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)[\w-]+(?:[&?].*)?$",
+        re.IGNORECASE,
     )
     _youtube_playlist_regex = re.compile(
         r"(?:https?://)?(?:www\.)?youtube\.com/(?:playlist\?list=|watch\?.*?list=)(.*?)(?:&|$)"
     )
-    _yt_dlp_opts = {
+    _base_yt_dlp_opts = {
         "format": "bestaudio/best",
         "quiet": False,
         "match_filter": "!is_live",
@@ -50,6 +52,7 @@ class SongDownloader:
     }
 
     def __init__(self, song_cache: SongsCache):
+        self._yt_dlp_opts = dict(self._base_yt_dlp_opts)
         self._load_cookies(
             COOKIES_PATH
         )  # cookies are required to be able to download age-restricted songs
@@ -88,17 +91,20 @@ class SongDownloader:
         if info.get("is_live", False):
             raise LiveFoundException(query)
 
+        stream_url = info.get("url")
+        if not stream_url:
+            raise NoResultsFoundException(query)
         return Song(
             title=info["title"],
             url=url,
-            duration=info["duration"],
-            thumbnail=info["thumbnails"][0]["url"],
+            duration=info.get("duration") or 0,
+            thumbnail=info.get("thumbnail"),
             expires_at=(
-                int(info["url"].split("expire=")[1].split("&")[0])
-                if "expire=" in info["url"]
+                int(stream_url.split("expire=")[1].split("&")[0])
+                if "expire=" in stream_url
                 else None
             ),
-            _stream_url=info["url"],
+            _stream_url=stream_url,
         )
 
     def _get_url(self, query: str) -> str:
@@ -106,10 +112,15 @@ class SongDownloader:
             raise PlaylistFoundException(query)
         if self._youtube_regex.match(query):
             return query
-        search = YoutubeSearch(query, max_results=1).to_dict()
-        if not search:
+        with yt_dlp.YoutubeDL({**self._yt_dlp_opts, "quiet": True}) as ydl:
+            try:
+                search = ydl.extract_info(f"ytsearch1:{query}", download=False)
+            except yt_dlp.utils.DownloadError:
+                raise NoResultsFoundException(query)
+        entries = (search or {}).get("entries") or []
+        if not entries:
             raise NoResultsFoundException(query)
-        return f"https://www.youtube.com/watch?v={search[0]['id']}"
+        return entries[0].get("webpage_url") or f"https://www.youtube.com/watch?v={entries[0]['id']}"
 
 
 class PlaylistExtractor:
@@ -139,10 +150,10 @@ class PlaylistExtractor:
 
         return PlaylistRequest(
             title=playlist_info["title"],
-            thumbnail=playlist_info["thumbnails"][0]["url"],
-            total_duration=self._calculate_duration(playlist_info["entries"]),
-            length=len(playlist_info["entries"]),
-            songs=self._get_song_requests(playlist_info["entries"], song_request),
+            thumbnail=playlist_info.get("thumbnail", ""),
+            total_duration=self._calculate_duration(playlist_info.get("entries") or []),
+            length=len(playlist_info.get("entries") or []),
+            songs=self._get_song_requests(playlist_info.get("entries") or [], song_request),
             playlist_url=self._playlist_url,
         )
 
@@ -154,14 +165,15 @@ class PlaylistExtractor:
 
     @staticmethod
     def _calculate_duration(entries: list[dict]) -> int:
-        return sum(video["duration"] for video in entries if video["duration"])
+        return sum(video.get("duration") or 0 for video in entries)
 
     def _get_song_requests(
         self, entries: list[dict], song_request: SongRequest
     ) -> list[SongRequest]:
         requests = [
             SongRequest(
-                video["url"], song_request.ctx, quiet=True, _title=video["title"]
+                video.get("url") or video.get("webpage_url"), song_request.ctx,
+                quiet=True, _title=video.get("title", "Unknown title")
             )
             for video in entries
         ]

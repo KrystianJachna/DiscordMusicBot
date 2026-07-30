@@ -1,12 +1,23 @@
+import asyncio
+import logging
+
 import discord
 from discord.ext import commands, tasks
 
-from cogs.music.messages import *
-from cogs.music.music_service import MusicPlayer
-from cogs.music.song_queue import BgDownloadSongQueue
-from cogs.music.song_cache import LRUSongsCache
-from cogs.music.music_downloader import SongDownloader
-from config import *
+try:
+    from src.cogs.music.messages import *
+    from src.cogs.music.music_service import MusicPlayer
+    from src.cogs.music.song_queue import BgDownloadSongQueue
+    from src.cogs.music.song_cache import LRUSongsCache
+    from src.cogs.music.music_downloader import SongDownloader
+    from src.config import *
+except ModuleNotFoundError:
+    from cogs.music.messages import *
+    from cogs.music.music_service import MusicPlayer
+    from cogs.music.song_queue import BgDownloadSongQueue
+    from cogs.music.song_cache import LRUSongsCache
+    from cogs.music.music_downloader import SongDownloader
+    from config import *
 from .song import SongRequest
 
 class MusicCog(commands.Cog):
@@ -81,18 +92,44 @@ class MusicCog(commands.Cog):
         await music_player.shuffle()
         await ctx.send(embed=shuffled())
 
-    async def _stop_music_player(self, guild_id: int) -> None:
+    @commands.command(description="Pokaż aktualnie odtwarzany utwór.\n**Użycie**: `!nowplaying`")
+    async def nowplaying(self, ctx: commands.Context) -> None:
+        music_player = self._servers_music_players[ctx.guild.id]
+        if not music_player.now_playing:
+            await ctx.send(embed=not_playing())
+            return
+        await ctx.send(embed=now_playing(music_player.now_playing, music_player.volume))
+
+    @commands.command(description="Usuń utwór z kolejki po numerze.\n**Użycie**: `!remove <numer>`")
+    async def remove(self, ctx: commands.Context, position: int) -> None:
+        music_player = self._servers_music_players[ctx.guild.id]
         try:
-            music_player = self._servers_music_players[guild_id]
-        except KeyError:  # called by on_voice_state_update while executing this command
+            title = await music_player.remove(position)
+        except (IndexError, ValueError):
+            await ctx.send(embed=invalid_queue_position())
+            return
+        await ctx.send(embed=removed_from_queue(title))
+
+    @commands.command(description="Ustaw głośność od 0 do 200 procent.\n**Użycie**: `!volume <0-200>`")
+    async def volume(self, ctx: commands.Context, value: int) -> None:
+        if not 0 <= value <= 200:
+            await ctx.send(embed=invalid_volume())
+            return
+        music_player = self._servers_music_players[ctx.guild.id]
+        await music_player.set_volume(value / 100)
+        await ctx.send(embed=volume_changed(value))
+
+    async def _stop_music_player(self, guild_id: int) -> None:
+        music_player = self._servers_music_players.pop(guild_id, None)
+        if music_player is None:  # also called by on_voice_state_update during disconnect
             return
         await music_player.stop()
-        self._servers_music_players.pop(guild_id, None)
 
     @staticmethod
     async def _is_on_same_channel(ctx: commands.Context) -> None:
-        if ctx.author.voice.channel != ctx.voice_client.channel:
-            await ctx.send(embed=not_in_same_voice_channel(ctx.author.voice.channel.name))
+        if not ctx.author.voice or not ctx.voice_client or ctx.author.voice.channel != ctx.voice_client.channel:
+            channel_name = getattr(getattr(ctx.voice_client, "channel", None), "name", "kanałem bota")
+            await ctx.send(embed=not_in_same_voice_channel(channel_name))
             raise commands.CommandError("User not in the same channel as the bot.")
 
     @commands.Cog.listener()
@@ -100,13 +137,13 @@ class MusicCog(commands.Cog):
                                     member: discord.Member,
                                     before: discord.VoiceState,
                                     after: discord.VoiceState) -> None:
-        if member == self._bot.user and after.channel is None:
+        if member == self._bot.user and after.channel is None and before.channel:
             await self._stop_music_player(before.channel.guild.id)
 
     @tasks.loop(seconds=NO_USERS_DISCONNECT_TIMEOUT)
     async def check_listeners(self) -> None:
         for guild_id, music_player in self._servers_music_players.copy().items():
-            if not music_player.voice_client.channel.members:
+            if not any(not member.bot for member in music_player.voice_client.channel.members):
                 await self._stop_music_player(guild_id)
 
     @tasks.loop(seconds=NO_MUSIC_DISCONNECT_TIMEOUT)
@@ -121,7 +158,33 @@ class MusicCog(commands.Cog):
             await ctx.send(embed=not_in_voice_channel())
             raise commands.CommandError("User not connected to a voice channel.")
         if ctx.voice_client is None:
-            voice_client = await ctx.author.voice.channel.connect()
+            voice_client = None
+            last_error = None
+            for attempt in range(1, 4):
+                try:
+                    if ctx.voice_client:
+                        await ctx.voice_client.disconnect(force=True)
+                    voice_client = await ctx.author.voice.channel.connect(reconnect=False)
+                    break
+                except (discord.ClientException, asyncio.TimeoutError, discord.ConnectionClosed) as error:
+                    last_error = error
+                    logging.warning(
+                        "Voice connection attempt %d/3 failed: %s", attempt, error
+                    )
+                    if ctx.voice_client:
+                        await ctx.voice_client.disconnect(force=True)
+                    if attempt < 3:
+                        await asyncio.sleep(attempt)
+
+            if voice_client is None:
+                logging.error("Voice connection failed after 3 attempts", exc_info=last_error)
+                error_embed = (
+                    voice_e2ee_error()
+                    if getattr(last_error, "code", None) == 4017
+                    else voice_connection_error()
+                )
+                await ctx.send(embed=error_embed)
+                raise commands.CommandError("Voice connection failed") from last_error
             self._servers_music_players[ctx.guild.id] = MusicPlayer(voice_client,
                                                                     BgDownloadSongQueue(self._song_downloader))
         await self._is_on_same_channel(ctx)
@@ -133,6 +196,9 @@ class MusicCog(commands.Cog):
     @loop.before_invoke
     @clear.before_invoke
     @queue.before_invoke
+    @nowplaying.before_invoke
+    @remove.before_invoke
+    @volume.before_invoke
     async def ensure_bot_on_voice(self, ctx: commands.Context) -> None:
         if ctx.guild.id not in self._servers_music_players:
             await ctx.send(embed=not_connected())

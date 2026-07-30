@@ -2,7 +2,7 @@ import asyncio
 import logging
 from typing import Optional
 
-from .song import SongRequest
+from .song import Song, SongRequest
 from discord import VoiceClient
 
 from .messages import *
@@ -23,6 +23,8 @@ class MusicPlayer:
         self._looped_songs: list[Song] = []
         self._clearing_queue = False
         self._processing_task: Optional[asyncio.Task] = None
+        self._volume = 1.0
+        self._source = None
 
     async def pause(self) -> None:
         if not self._now_playing:
@@ -38,6 +40,15 @@ class MusicPlayer:
         if not self._now_playing:
             raise MusicPlayer.NotPlayingException
         self._voice_client.stop()
+
+    @property
+    def volume(self) -> float:
+        return self._volume
+
+    async def set_volume(self, volume: float) -> None:
+        self._volume = max(0.0, min(volume, 2.0))
+        if self._source is not None:
+            self._source.volume = self._volume
 
     @property
     def loop(self) -> bool:
@@ -61,12 +72,17 @@ class MusicPlayer:
             self._voice_client.stop()
         if self._processing_task:
             self._processing_task.cancel()
+            await asyncio.gather(self._processing_task, return_exceptions=True)
+            self._processing_task = None
         await self._voice_client.disconnect()
 
     async def clear_queue(self) -> None:
         await self._song_queue.clear_queue()
         self._looped_songs.clear()
         self._clearing_queue = True
+        if self._processing_task and not self._processing_task.done():
+            self._processing_task.cancel()
+            self._processing_task = None
 
     async def get_queue_info(self) -> tuple[Optional[Song], list[str]]:  # (now_playing_song, [queries])
         waiting_in_queue = await self._song_queue.get_queue_info()
@@ -84,6 +100,9 @@ class MusicPlayer:
     async def shuffle(self) -> None:
         await self._song_queue.shuffle()
 
+    async def remove(self, position: int) -> str:
+        return await self._song_queue.remove(position)
+
     async def _process_song_queue(self) -> None:
         self._processing_queue = True
         try:
@@ -95,10 +114,18 @@ class MusicPlayer:
                         self._now_playing = self._looped_songs.pop(0)
                     else:
                         break
-                source = await self._now_playing.get_source()
+                source = await self._now_playing.get_source(self._volume)
+                self._source = source
                 finished = asyncio.Event()
-                self._voice_client.play(source, after=lambda e: self._after_playing(e, finished))
+                loop = asyncio.get_running_loop()
+                self._voice_client.play(
+                    source,
+                    after=lambda e: loop.call_soon_threadsafe(
+                        self._after_playing, e, finished
+                    ),
+                )
                 await finished.wait()
+                self._source = None
                 self._now_playing = None
         except asyncio.CancelledError:
             pass

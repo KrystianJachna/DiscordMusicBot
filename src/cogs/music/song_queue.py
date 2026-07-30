@@ -12,7 +12,7 @@ from .music_downloader import (
     PlaylistNotFoundError,
     YoutubeMixFoundException,
 )
-from .song import SongRequest
+from .song import Song, SongRequest
 from random import shuffle
 
 
@@ -43,6 +43,10 @@ class SongQueue(ABC):
 
     @abstractmethod
     async def shuffle(self) -> None:
+        pass
+
+    @abstractmethod
+    async def remove(self, position: int) -> str:
         pass
 
 
@@ -89,6 +93,20 @@ class BgDownloadSongQueue(SongQueue):
         shuffle(self._downloaded_songs)
         shuffle(self._waiting_queries)
 
+    async def remove(self, position: int) -> str:
+        if position < 1:
+            raise ValueError(position)
+        songs = self._downloaded_songs + self._waiting_queries
+        try:
+            item = songs[position - 1]
+        except IndexError:
+            raise IndexError(position)
+        if isinstance(item, SongRequest):
+            self._waiting_queries.remove(item)
+            return item.title
+        self._downloaded_songs.remove(item)
+        return item.title
+
     async def _process_queue(self) -> None:
         try:
             while self._waiting_queries:
@@ -125,7 +143,8 @@ class BgDownloadSongQueue(SongQueue):
                 finally:
                     if not song_request.quiet and embed_message:
                         await song_request.ctx.send(embed=embed_message)
-                    self._waiting_queries.remove(song_request)
+                    if song_request in self._waiting_queries:
+                        self._waiting_queries.remove(song_request)
         except asyncio.CancelledError:
             pass
         finally:
